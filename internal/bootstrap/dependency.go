@@ -7,6 +7,10 @@ import (
 	authRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	authServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
 
+	userHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/handler"
+	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
+	userServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/service"
+
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/config"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	redisConn "github.com/KejarBahasa/kejarbill-api/internal/shared/redis"
@@ -17,15 +21,14 @@ import (
 )
 
 type Dependency struct {
-	Config *config.Config
-
-	DB *pgxpool.Pool
-
-	Redis *goredis.Client
-
+	Config      *config.Config
+	DB          *pgxpool.Pool
+	Redis       *goredis.Client
 	PasetoMaker *security.PasetoMaker
 
 	AuthHandler *authHandlerPkg.AuthHandler
+
+	UserHandler *userHandlerPkg.UserHandler
 }
 
 func BuildDependency() (*Dependency, error) {
@@ -40,6 +43,7 @@ func BuildDependency() (*Dependency, error) {
 	}
 
 	authRepo := authRepoPkg.NewAuthRepository(db)
+	userRepo := userRepoPkg.NewUserRepository(db)
 
 	accessDuration, err := time.ParseDuration(cfg.AccessTokenDuration)
 	if err != nil {
@@ -51,18 +55,19 @@ func BuildDependency() (*Dependency, error) {
 	}
 
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, accessDuration, refreshDuration)
+	userService := userServicePkg.NewUserService(userRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
+	userHandler := userHandlerPkg.NewUserHandler(userService)
 
 	return &Dependency{
-		Config: cfg,
-
-		DB: db,
-
-		Redis: rdb,
-
+		Config:      cfg,
+		DB:          db,
+		Redis:       rdb,
 		PasetoMaker: pasetoMaker,
 
 		AuthHandler: authHandler,
+
+		UserHandler: userHandler,
 	}, nil
 }

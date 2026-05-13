@@ -90,39 +90,6 @@ func (r *AuthRepository) FindByEmail(ctx context.Context, email string) (*entity
 	return &user, nil
 }
 
-func (r *AuthRepository) FindByID(ctx context.Context, id string) (*entity.User, error) {
-	query := `
-		SELECT
-			id,
-			email,
-			username,
-			full_name,
-			status,
-			created_at,
-			updated_at
-		FROM users
-		WHERE id = $1
-		LIMIT 1
-	`
-
-	var user entity.User
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&user.ID,
-		&user.Email,
-		&user.Username,
-		&user.Name,
-		&user.Status,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
-}
-
 func (r *AuthRepository) CreateUser(ctx context.Context, user *entity.User) error {
 	query := `
 		INSERT INTO users (

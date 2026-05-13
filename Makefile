@@ -20,4 +20,4 @@ test:
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
-	rm -f ./tmp/$(APP_NAME)
+	rm -rf ./tmp/*

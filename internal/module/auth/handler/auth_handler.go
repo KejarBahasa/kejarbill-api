@@ -1,12 +1,9 @@
 package handler
 
 import (
-	"time"
-
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
-	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -69,28 +66,4 @@ func (h *AuthHandler) RefreshToken(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "refresh token success", resp)
-}
-
-func (h *AuthHandler) Me(c fiber.Ctx) error {
-	userId := security.GetUserID(c)
-	if userId == "" {
-		return fiber.ErrUnauthorized
-	}
-
-	user, err := h.authService.Me(c.Context(), userId)
-	if err != nil {
-		return fiber.NewError(fiber.StatusUnauthorized, err.Error())
-	}
-
-	resp := dto.MeResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Username:  user.Username,
-		Email:     user.Email,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt.Format(time.DateTime),
-		UpdatedAt: user.UpdatedAt.Format(time.DateTime),
-	}
-
-	return response.Success(c, "ok", resp)
 }

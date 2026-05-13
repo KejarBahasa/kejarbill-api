@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	authRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/route"
+	userRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/route"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 
 	"github.com/gofiber/fiber/v3"
@@ -20,4 +21,7 @@ func RegisterRoute(
 
 	// AUTH
 	authRoutePkg.AuthRoute(apiV1, dep.AuthHandler, dep.PasetoMaker)
+
+	// USER
+	userRoutePkg.UserRoute(apiV1, dep.UserHandler, dep.PasetoMaker)
 }

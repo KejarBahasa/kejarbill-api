@@ -36,15 +36,11 @@ func NewAuthService(
 
 func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) error {
 	existingUser, _ := s.authRepo.FindByEmail(ctx, req.Email)
-
 	if existingUser != nil {
 		return errors.New("email already registered")
 	}
 
-	hashedPassword, err := security.HashPassword(
-		req.Password,
-	)
-
+	hashedPassword, err := security.HashPassword(req.Password)
 	if err != nil {
 		return err
 	}
@@ -110,8 +106,4 @@ func (s *AuthService) RefreshToken(ctx context.Context, req dto.RefreshTokenRequ
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
-}
-
-func (s *AuthService) Me(ctx context.Context, userId string) (*entity.User, error) {
-	return s.authRepo.FindByID(ctx, userId)
 }
