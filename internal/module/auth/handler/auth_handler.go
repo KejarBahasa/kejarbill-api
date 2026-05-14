@@ -65,6 +65,10 @@ func (h *AuthHandler) RefreshToken(c fiber.Ctx) error {
 	refreshToken := c.Cookies("refresh_token")
 
 	if refreshToken == "" {
+		refreshToken = c.Get("X-Refresh-Token")
+	}
+
+	if refreshToken == "" {
 		return fiber.ErrUnauthorized
 	}
 
@@ -85,6 +89,10 @@ func (h *AuthHandler) RefreshToken(c fiber.Ctx) error {
 
 func (h *AuthHandler) Logout(c fiber.Ctx) error {
 	refreshToken := c.Cookies("refresh_token")
+
+	if refreshToken == "" {
+		refreshToken = c.Get("X-Refresh-Token")
+	}
 
 	if refreshToken == "" {
 		return fiber.ErrUnauthorized
