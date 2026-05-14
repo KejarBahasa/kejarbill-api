@@ -11,4 +11,5 @@ type User struct {
 	Email        string
 	PasswordHash string
 	Status       string
+	TokenVersion int16
 }

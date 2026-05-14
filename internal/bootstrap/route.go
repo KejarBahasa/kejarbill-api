@@ -20,8 +20,8 @@ func RegisterRoute(
 	apiV1 := api.Group("/v1")
 
 	// AUTH
-	authRoutePkg.AuthRoute(apiV1, dep.AuthHandler, dep.PasetoMaker)
+	authRoutePkg.AuthRoute(apiV1, dep.AuthHandler)
 
 	// USER
-	userRoutePkg.UserRoute(apiV1, dep.UserHandler, dep.PasetoMaker)
+	userRoutePkg.UserRoute(apiV1, dep.UserHandler, dep.AuthMiddleware)
 }

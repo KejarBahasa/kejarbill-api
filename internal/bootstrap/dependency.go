@@ -1,8 +1,6 @@
 package bootstrap
 
 import (
-	"time"
-
 	authHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/handler"
 	authRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	authServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/config"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/middleware"
 	redisConn "github.com/KejarBahasa/kejarbill-api/internal/shared/redis"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 
@@ -21,10 +20,12 @@ import (
 )
 
 type Dependency struct {
-	Config      *config.Config
-	DB          *pgxpool.Pool
-	Redis       *goredis.Client
-	PasetoMaker *security.PasetoMaker
+	Config         *config.Config
+	DB             *pgxpool.Pool
+	Redis          *goredis.Client
+	PasetoMaker    *security.PasetoMaker
+	SessionStore   *security.SessionStore
+	AuthMiddleware *middleware.AuthMiddleware
 
 	AuthHandler *authHandlerPkg.AuthHandler
 
@@ -42,29 +43,26 @@ func BuildDependency() (*Dependency, error) {
 		return nil, err
 	}
 
+	sessionStore := security.NewSessionStore(rdb)
+
 	authRepo := authRepoPkg.NewAuthRepository(db)
 	userRepo := userRepoPkg.NewUserRepository(db)
 
-	accessDuration, err := time.ParseDuration(cfg.AccessTokenDuration)
-	if err != nil {
-		return nil, err
-	}
-	refreshDuration, err := time.ParseDuration(cfg.RefreshTokenDuration)
-	if err != nil {
-		return nil, err
-	}
+	authMiddleware := middleware.NewAuthMiddleware(pasetoMaker, authRepo)
 
-	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, accessDuration, refreshDuration)
+	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)
 
 	return &Dependency{
-		Config:      cfg,
-		DB:          db,
-		Redis:       rdb,
-		PasetoMaker: pasetoMaker,
+		Config:         cfg,
+		DB:             db,
+		Redis:          rdb,
+		PasetoMaker:    pasetoMaker,
+		SessionStore:   sessionStore,
+		AuthMiddleware: authMiddleware,
 
 		AuthHandler: authHandler,
 

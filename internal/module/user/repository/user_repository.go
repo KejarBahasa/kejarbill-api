@@ -28,6 +28,7 @@ func (r *UserRepository) FindByID(ctx context.Context, userID string) (*entity.U
 			username,
 			email,
 			status,
+			token_version,
 			created_at,
 			updated_at
 		FROM users
@@ -43,6 +44,7 @@ func (r *UserRepository) FindByID(ctx context.Context, userID string) (*entity.U
 		&user.Username,
 		&user.Email,
 		&user.Status,
+		&user.TokenVersion,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)

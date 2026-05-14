@@ -10,8 +10,10 @@ import (
 func BuildApp(dep *Dependency) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      dep.Config.AppName,
-		ReadTimeout:  10 * time.Second,
 		ErrorHandler: middleware.ErrorHandler,
+		ReadTimeout:  10 * time.Second,
+		TrustProxy:   true,
+		ProxyHeader:  "CF-Connecting-IP",
 	})
 
 	RegisterMiddleware(app)

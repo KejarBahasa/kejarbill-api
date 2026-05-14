@@ -3,7 +3,10 @@ package handler
 import (
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -43,27 +46,56 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	resp, err := h.authService.Login(c.Context(), req)
+	clientInfo := utils.GetClientInfo(c)
 
+	resp, err := h.authService.Login(c.Context(), req, clientInfo)
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+	}
+
+	if clientInfo.ClientType == constants.ClientTypeWeb {
+		security.SetRefreshCookie(c, resp.RefreshToken)
+		resp.RefreshToken = ""
 	}
 
 	return response.Success(c, "login success", resp)
 }
 
 func (h *AuthHandler) RefreshToken(c fiber.Ctx) error {
-	var req dto.RefreshTokenRequest
+	refreshToken := c.Cookies("refresh_token")
 
-	if err := c.Bind().Body(&req); err != nil {
-		return fiber.ErrBadRequest
+	if refreshToken == "" {
+		return fiber.ErrUnauthorized
 	}
 
-	resp, err := h.authService.RefreshToken(c.Context(), req)
+	clientInfo := utils.GetClientInfo(c)
 
+	resp, err := h.authService.RefreshToken(c.Context(), refreshToken, clientInfo)
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 	}
 
+	if clientInfo.ClientType == constants.ClientTypeWeb {
+		security.SetRefreshCookie(c, resp.RefreshToken)
+		resp.RefreshToken = ""
+	}
+
 	return response.Success(c, "refresh token success", resp)
+}
+
+func (h *AuthHandler) Logout(c fiber.Ctx) error {
+	refreshToken := c.Cookies("refresh_token")
+
+	if refreshToken == "" {
+		return fiber.ErrUnauthorized
+	}
+
+	err := h.authService.Logout(c.Context(), refreshToken)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+	}
+
+	security.ClearRefreshCookie(c)
+
+	return response.Success(c, "logout success", nil)
 }

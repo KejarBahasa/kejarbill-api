@@ -3,6 +3,7 @@ package security
 import (
 	"encoding/base64"
 	"errors"
+	"strconv"
 	"time"
 
 	paseto "aidanwoods.dev/go-paseto"
@@ -33,13 +34,15 @@ func NewPasetoMaker(secretStr string) (*PasetoMaker, error) {
 	}, nil
 }
 
-func (p *PasetoMaker) CreateToken(userID string, duration time.Duration) (string, *Payload, error) {
+func (p *PasetoMaker) CreateToken(userID, tokenType string, tokenVersion int16, duration time.Duration) (string, *Payload, error) {
 	now := time.Now()
 
 	payload := &Payload{
-		TokenID:   uuid.NewString(),
-		UserID:    userID,
-		ExpiredAt: now.Add(duration),
+		TokenID:      uuid.NewString(),
+		UserID:       userID,
+		TokenType:    tokenType,
+		TokenVersion: tokenVersion,
+		ExpiredAt:    now.Add(duration),
 	}
 
 	token := paseto.NewToken()
@@ -47,8 +50,10 @@ func (p *PasetoMaker) CreateToken(userID string, duration time.Duration) (string
 	token.SetIssuedAt(now)
 	token.SetExpiration(payload.ExpiredAt)
 
-	token.SetString("token_id", payload.TokenID)
+	token.SetString(ContextTokenID, payload.TokenID)
+	token.SetString(ContextTokenType, payload.TokenType)
 	token.SetString(ContextUserID, payload.UserID)
+	token.SetString(ContextTokenVersion, strconv.Itoa(int(payload.TokenVersion)))
 
 	tokenStr := token.V4Encrypt(p.key, nil)
 
@@ -75,19 +80,36 @@ func (p *PasetoMaker) VerifyToken(tokenStr string) (*Payload, error) {
 		return nil, errors.New("token expired")
 	}
 
-	tokenId, err := token.GetString("token_id")
+	tokenId, err := token.GetString(ContextTokenID)
 	if err != nil {
 		return nil, err
 	}
 
-	userId, err := token.GetString("user_id")
+	tokenType, err := token.GetString(ContextTokenType)
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := token.GetString(ContextUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenVersionStr, err := token.GetString(ContextTokenVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenVersion, err := strconv.Atoi(tokenVersionStr)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Payload{
-		TokenID:   tokenId,
-		UserID:    userId,
-		ExpiredAt: exp,
+		TokenID:      tokenId,
+		UserID:       userID,
+		TokenType:    tokenType,
+		TokenVersion: int16(tokenVersion),
+		ExpiredAt:    exp,
 	}, nil
 }

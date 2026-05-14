@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -24,8 +25,8 @@ type Config struct {
 
 	PasetoSecretKey string `mapstructure:"PASETO_SECRET_KEY"`
 
-	AccessTokenDuration  string `mapstructure:"ACCESS_TOKEN_DURATION"`
-	RefreshTokenDuration string `mapstructure:"REFRESH_TOKEN_DURATION"`
+	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
+	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
 }
 
 func LoadConfig() *Config {

@@ -35,7 +35,8 @@ func (r *AuthRepository) AuthLogin(ctx context.Context, identifier string) (*ent
 			full_name,
 			email,
 			password_hash,
-			status
+			status,
+			token_version
 		FROM users
 		WHERE ` + field + ` = $1
 		LIMIT 1
@@ -48,6 +49,42 @@ func (r *AuthRepository) AuthLogin(ctx context.Context, identifier string) (*ent
 		&user.Email,
 		&user.PasswordHash,
 		&user.Status,
+		&user.TokenVersion,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *AuthRepository) FindByID(ctx context.Context, userID string) (*entity.User, error) {
+	query := `
+		SELECT
+			id,
+			full_name,
+			username,
+			email,
+			status,
+			token_version,
+			created_at,
+			updated_at
+		FROM users
+		WHERE id = $1
+		LIMIT 1
+	`
+
+	var user entity.User
+
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Username,
+		&user.Email,
+		&user.Status,
+		&user.TokenVersion,
+		&user.CreatedAt,
+		&user.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -64,6 +101,7 @@ func (r *AuthRepository) FindByEmail(ctx context.Context, email string) (*entity
 			email,
 			password_hash,
 			status,
+			token_version,
 			created_at,
 			updated_at
 		FROM users
@@ -79,6 +117,7 @@ func (r *AuthRepository) FindByEmail(ctx context.Context, email string) (*entity
 		&user.Email,
 		&user.PasswordHash,
 		&user.Status,
+		&user.TokenVersion,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
