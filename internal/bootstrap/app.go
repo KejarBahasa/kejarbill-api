@@ -16,7 +16,7 @@ func BuildApp(dep *Dependency) *fiber.App {
 		ProxyHeader:  "CF-Connecting-IP",
 	})
 
-	RegisterMiddleware(app)
+	RegisterMiddleware(app, dep.Config.AppEnv)
 
 	RegisterRoute(app, dep)
 

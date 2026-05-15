@@ -11,6 +11,7 @@ import (
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/config"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/logger"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/middleware"
 	redisConn "github.com/KejarBahasa/kejarbill-api/internal/shared/redis"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
@@ -34,6 +35,7 @@ type Dependency struct {
 
 func BuildDependency() (*Dependency, error) {
 	cfg := config.LoadConfig()
+	logger.Init(cfg.AppEnv)
 
 	db := database.NewPostgres(cfg)
 	rdb := redisConn.NewRedis(cfg.RedisAddr, cfg.RedisPassword)
