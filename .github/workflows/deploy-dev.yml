@@ -36,7 +36,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-to-server:
-    runs-on: [kejar-runners, linux]
+    runs-on: [self-hosted, linux]
     needs: build-and-push
 
     steps:
