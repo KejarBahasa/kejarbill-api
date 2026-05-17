@@ -47,6 +47,6 @@ jobs:
           cp docker-compose.yml /opt/kejarbahasa-dev/kejar-bill-api/docker-compose.yml
           cd /opt/kejarbahasa-dev/kejar-bill-api
           printf "%s" "${{ secrets.DEV_ENV }}" > .env
-          docker compose pull app
+          docker compose pull kejarbill-api
           docker compose up -d --remove-orphans
           docker image prune -f
