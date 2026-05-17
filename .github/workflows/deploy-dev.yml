@@ -23,8 +23,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Create dummy .env file
-        run: touch .env
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -48,7 +46,7 @@ jobs:
           mkdir -p /opt/kejarbahasa-dev/kejar-bill-api
           cp docker-compose.yml /opt/kejarbahasa-dev/kejar-bill-api/docker-compose.yml
           cd /opt/kejarbahasa-dev/kejar-bill-api
-          echo "${{ secrets.DEV_ENV }}" > .env
+          printf "%s" "${{ secrets.DEV_ENV }}" > .env
           docker compose pull app
           docker compose up -d --remove-orphans
           docker image prune -f
