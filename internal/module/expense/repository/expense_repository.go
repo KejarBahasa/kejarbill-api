@@ -16,13 +16,7 @@ func NewExpenseRepository() *ExpenseRepository {
 	return &ExpenseRepository{}
 }
 
-func (r *ExpenseRepository) CreateExpense(
-	ctx context.Context,
-	tx pgx.Tx,
-
-	expense *entity.Expense,
-) (string, error) {
-
+func (r *ExpenseRepository) CreateExpense(ctx context.Context, tx pgx.Tx, expense *entity.Expense) (string, error) {
 	query := `
 		INSERT INTO expenses (
 			group_id,
@@ -66,41 +60,7 @@ func (r *ExpenseRepository) CreateExpense(
 	return expenseID, err
 }
 
-func (r *ExpenseRepository) CreateExpenseParticipant(
-	ctx context.Context,
-	tx pgx.Tx,
-
-	participant *entity.ExpenseParticipant,
-) error {
-
-	query := `
-		INSERT INTO expense_participants (
-			expense_id,
-			participant_id,
-			share_amount
-		)
-		VALUES ($1,$2,$3)
-	`
-
-	_, err := tx.Exec(
-		ctx,
-		query,
-
-		participant.ExpenseID,
-		participant.ParticipantID,
-		participant.ShareAmount,
-	)
-
-	return err
-}
-
-func (r *ExpenseRepository) BulkCreateExpenseParticipants(
-	ctx context.Context,
-	tx pgx.Tx,
-
-	participants []*entity.ExpenseParticipant,
-) error {
-
+func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, tx pgx.Tx, participants []entity.ExpenseParticipant) error {
 	if len(participants) == 0 {
 		return nil
 	}
@@ -115,7 +75,7 @@ func (r *ExpenseRepository) BulkCreateExpenseParticipants(
 		len(participants),
 	)
 
-	args := make([]any, 0)
+	args := make([]any, 0, len(participants)*3)
 	for _, participant := range participants {
 		args = append(
 			args,

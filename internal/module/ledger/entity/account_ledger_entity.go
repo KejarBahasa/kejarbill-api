@@ -13,7 +13,7 @@ type AccountLedger struct {
 	SourceType string
 	SourceID   string
 
-	Amount float64
+	Amount int64
 
 	CreatedAt time.Time
 }

@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"errors"
+
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
 
@@ -26,17 +29,23 @@ func NewExpenseHandler(
 
 func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 	var req dto.CreateExpenseEqualRequest
-
-	if err := request.ValidateBody(c, &req); err != nil {
-		return err
+	if validationErr := request.ValidateBody(c, &req); validationErr != nil {
+		return request.HandleValidationError(c, validationErr)
 	}
 
 	userID := security.GetUserID(c)
 
-	err := h.expenseService.CreateExpenseEqual(c.Context(), userID, &req)
+	expenseID, err := h.expenseService.CreateExpenseEqual(c.Context(), userID, &req)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		switch {
+		case errors.Is(err, expenseConstants.ErrParticipantsRequired):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrDuplicateParticipants):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		}
 	}
 
-	return response.Success(c, "expense created", nil)
+	return response.Success(c, "expense created", fiber.Map{"id": expenseID})
 }

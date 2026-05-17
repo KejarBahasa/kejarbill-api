@@ -16,52 +16,7 @@ func NewLedgerRepository() *LedgerRepository {
 	return &LedgerRepository{}
 }
 
-func (r *LedgerRepository) Create(
-	ctx context.Context,
-	tx pgx.Tx,
-
-	ledger *entity.AccountLedger,
-) error {
-
-	query := `
-		INSERT INTO account_ledger (
-			group_id,
-			from_participant_id,
-			to_participant_id,
-			source_type,
-			source_id,
-			amount
-		)
-		VALUES (
-			$1,$2,$3,$4,$5,$6
-		)
-	`
-
-	_, err := tx.Exec(
-		ctx,
-		query,
-
-		ledger.GroupID,
-
-		ledger.FromParticipantID,
-		ledger.ToParticipantID,
-
-		ledger.SourceType,
-		ledger.SourceID,
-
-		ledger.Amount,
-	)
-
-	return err
-}
-
-func (r *LedgerRepository) BulkCreate(
-	ctx context.Context,
-	tx pgx.Tx,
-
-	ledgers []*entity.AccountLedger,
-) error {
-
+func (r *LedgerRepository) BulkCreate(ctx context.Context, tx pgx.Tx, ledgers []entity.AccountLedger) error {
 	if len(ledgers) == 0 {
 		return nil
 	}
@@ -79,8 +34,7 @@ func (r *LedgerRepository) BulkCreate(
 		len(ledgers),
 	)
 
-	args := make([]any, 0)
-
+	args := make([]any, 0, len(ledgers)*6)
 	for _, ledger := range ledgers {
 		args = append(
 			args,

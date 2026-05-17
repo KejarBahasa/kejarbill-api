@@ -9,9 +9,11 @@ import (
 
 var Log zerolog.Logger
 
-func Init(appName string) {
+func Init(env, appName string) {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if env == "production" {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
 
 	Log = zerolog.New(os.Stdout).
 		With().

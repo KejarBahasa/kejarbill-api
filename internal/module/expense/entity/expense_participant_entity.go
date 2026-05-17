@@ -6,6 +6,6 @@ type ExpenseParticipant struct {
 	ID            string
 	ExpenseID     string
 	ParticipantID string
-	ShareAmount   float64
+	ShareAmount   int64
 	CreatedAt     time.Time
 }

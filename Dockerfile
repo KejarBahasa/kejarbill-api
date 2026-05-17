@@ -11,7 +11,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -mod=readonly -o /app/main cmd/api/main.go;
 
 FROM alpine:latest
-RUN apk add --no-cache tzdata dumb-init
+RUN apk add --no-cache dumb-init
 
 COPY --from=build /app/main .
 COPY .env ./

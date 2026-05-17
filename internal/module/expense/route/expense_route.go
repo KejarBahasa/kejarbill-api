@@ -12,7 +12,6 @@ func ExpenseRoute(
 	expenseHandler *handler.ExpenseHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
-
 	expense := api.Group("/expenses", authMiddleware.Protected)
 
 	expense.Post("/equal", expenseHandler.CreateExpenseEqual)

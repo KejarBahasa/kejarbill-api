@@ -14,11 +14,11 @@ type Expense struct {
 
 	Currency string
 
-	SubtotalAmount float64
-	TaxAmount      float64
-	ServiceAmount  float64
-	DiscountAmount float64
-	TotalAmount    float64
+	SubtotalAmount int64
+	TaxAmount      int64
+	ServiceAmount  int64
+	DiscountAmount int64
+	TotalAmount    int64
 
 	SplitMethod string
 
