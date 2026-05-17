@@ -4,6 +4,7 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/constants"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/request"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
@@ -25,9 +26,8 @@ func NewAuthHandler(
 
 func (h *AuthHandler) Register(c fiber.Ctx) error {
 	var req dto.RegisterRequest
-
-	if err := c.Bind().Body(&req); err != nil {
-		return fiber.ErrBadRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
 	}
 
 	err := h.authService.Register(c.Context(), req)
@@ -41,9 +41,8 @@ func (h *AuthHandler) Register(c fiber.Ctx) error {
 
 func (h *AuthHandler) Login(c fiber.Ctx) error {
 	var req dto.LoginRequest
-
-	if err := c.Bind().Body(&req); err != nil {
-		return fiber.ErrBadRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
 	}
 
 	clientInfo := utils.GetClientInfo(c)
