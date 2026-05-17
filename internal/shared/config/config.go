@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"reflect"
 	"time"
 	_ "time/tzdata"
 
@@ -37,6 +38,15 @@ func LoadConfig() *Config {
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Warning: .env file not found (%v). Using OS environment variables.", err)
+
+		t := reflect.TypeOf(Config{})
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			tag := field.Tag.Get("mapstructure")
+			if tag != "" {
+				viper.BindEnv(tag)
+			}
+		}
 	}
 
 	var config Config
