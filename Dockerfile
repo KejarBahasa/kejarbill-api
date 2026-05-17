@@ -14,7 +14,6 @@ FROM alpine:latest
 RUN apk add --no-cache dumb-init
 
 COPY --from=build /app/main .
-COPY .env ./
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["./main"]
