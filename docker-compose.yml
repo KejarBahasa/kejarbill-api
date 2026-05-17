@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  app:
+  kejarbill-api:
     # build: .
     image: kejarbahasa/kejar-bill-api:dev
     container_name: kejarbill-api
