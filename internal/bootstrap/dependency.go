@@ -5,16 +5,20 @@ import (
 	authRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	authServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
 
-	userHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/handler"
-	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
-	userServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/service"
-
 	expenseHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/handler"
 	expenseRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/repository"
 	expenseServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
 
+	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
+
+	participantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/participant/repository"
+
+	userHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/handler"
+	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
+	userServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/service"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/config"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
@@ -59,6 +63,8 @@ func BuildDependency() (*Dependency, error) {
 	authRepo := authRepoPkg.NewAuthRepository(db)
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ledgerRepo := ledgerRepoPkg.NewLedgerRepository()
+	groupRepo := groupRepoPkg.NewGroupRepository()
+	participantRepo := participantRepoPkg.NewParticipantRepository()
 	expenseRepo := expenseRepoPkg.NewExpenseRepository()
 
 	authMiddleware := middleware.NewAuthMiddleware(pasetoMaker, authRepo)
@@ -66,7 +72,7 @@ func BuildDependency() (*Dependency, error) {
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
-	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService)
+	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, participantRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)

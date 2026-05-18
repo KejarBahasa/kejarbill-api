@@ -11,8 +11,10 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
+	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
+	participantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/participant/repository"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,6 +27,10 @@ type ExpenseService struct {
 
 	ledgerRepo    *ledgerRepoPkg.LedgerRepository
 	ledgerService *ledgerServicePkg.LedgerService
+
+	groupRepo *groupRepoPkg.GroupRepository
+
+	participantRepo *participantRepoPkg.ParticipantRepository
 }
 
 func NewExpenseService(
@@ -34,8 +40,11 @@ func NewExpenseService(
 
 	ledgerRepo *ledgerRepoPkg.LedgerRepository,
 	ledgerService *ledgerServicePkg.LedgerService,
-) *ExpenseService {
 
+	groupRepo *groupRepoPkg.GroupRepository,
+
+	participantRepo *participantRepoPkg.ParticipantRepository,
+) *ExpenseService {
 	return &ExpenseService{
 		db: db,
 
@@ -43,6 +52,10 @@ func NewExpenseService(
 
 		ledgerRepo:    ledgerRepo,
 		ledgerService: ledgerService,
+
+		groupRepo: groupRepo,
+
+		participantRepo: participantRepo,
 	}
 }
 
@@ -51,8 +64,43 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrParticipantsRequired
 	}
 
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, req.GroupID)
+	if err != nil {
+		return "", err
+	}
+	if !groupExists {
+		return "", expenseConstants.ErrGroupNotFound
+	}
+
+	payerExists := false
+	for _, participantID := range req.ParticipantIDs {
+		if participantID == req.PayerParticipantID {
+			payerExists = true
+			break
+		}
+	}
+	if !payerExists {
+		return "", expenseConstants.ErrPayerNotIncludedInParticipants
+	}
+
+	payerExistsInGroup, err := s.participantRepo.ExistsByIDAndGroupID(ctx, s.db, req.GroupID, req.PayerParticipantID)
+	if err != nil {
+		return "", err
+	}
+	if !payerExistsInGroup {
+		return "", expenseConstants.ErrPayerParticipantNotInGroup
+	}
+
 	if utils.HasDuplicateString(req.ParticipantIDs) {
 		return "", expenseConstants.ErrDuplicateParticipants
+	}
+
+	participantCount, err := s.participantRepo.CountByIDsAndGroupID(ctx, s.db, req.GroupID, req.ParticipantIDs)
+	if err != nil {
+		return "", err
+	}
+	if participantCount != len(req.ParticipantIDs) {
+		return "", expenseConstants.ErrParticipantNotInGroup
 	}
 
 	expenseDate, err := time.Parse(time.RFC3339, req.ExpenseDate)
