@@ -48,9 +48,9 @@ func (s *BalanceService) GetGroupBalances(ctx context.Context, userID, groupID s
 		return nil, expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, userID, groupID)
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, userID)
 	if err != nil {
-		return nil, expenseConstants.ErrForbiddenGroupAccess
+		return nil, err
 	}
 	if !hasAccess {
 		return nil, expenseConstants.ErrForbiddenGroupAccess

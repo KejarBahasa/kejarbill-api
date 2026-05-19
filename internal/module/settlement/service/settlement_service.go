@@ -74,7 +74,7 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 		return "", expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, userID, groupID)
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, userID)
 	if err != nil {
 		return "", err
 	}
