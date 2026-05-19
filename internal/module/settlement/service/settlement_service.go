@@ -23,7 +23,6 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -106,7 +105,7 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 	}
 
 	var settlementID string
-	err = database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	err = database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		createdSettlementID, err := s.settlementRepo.Create(ctx, tx, &settlementEntity.Settlement{
 			GroupID:           groupID,
 			FromParticipantID: req.FromParticipantID,

@@ -17,7 +17,6 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -54,7 +53,7 @@ func NewGroupService(
 
 func (s *GroupService) Create(ctx context.Context, userID string, name string) (string, error) {
 	var groupID string
-	err := database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	err := database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		createdGroupID, err := s.groupRepo.Create(ctx, tx, &groupEntity.Group{
 			Name:      name,
 			CreatedBy: userID,

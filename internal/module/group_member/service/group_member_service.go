@@ -21,7 +21,6 @@ import (
 
 	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -104,7 +103,7 @@ func (s *GroupMemberService) AddMember(ctx context.Context, requesterUserID stri
 		return err
 	}
 
-	return database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		err := s.groupMemberRepo.Create(ctx, tx, &groupMemberEntity.GroupMember{
 			GroupID: groupID,
 			UserID:  req.UserID,
@@ -194,7 +193,7 @@ func (s *GroupMemberService) AddMembersBulk(ctx context.Context, requesterUserID
 		)
 	}
 
-	return database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		err := s.groupMemberRepo.BulkCreate(ctx, tx, memberEntities)
 		if err != nil {
 			return err

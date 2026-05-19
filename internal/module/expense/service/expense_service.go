@@ -17,7 +17,6 @@ import (
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -124,7 +123,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 	shareAmount := req.TotalAmount / int64(len(req.ParticipantIDs))
 
 	var expenseID string
-	err = database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	err = database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		createdExpenseID, err := s.expenseRepo.CreateExpense(ctx, tx, &entity.Expense{
 			GroupID:             req.GroupID,
 			Title:               req.Title,

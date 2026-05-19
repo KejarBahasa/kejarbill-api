@@ -17,7 +17,6 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -91,7 +90,7 @@ func (s *GroupParticipantService) CreateGuestParticipants(ctx context.Context, r
 		})
 	}
 
-	return database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		return s.participantRepo.BulkCreate(ctx, tx, participants)
 	})
 }

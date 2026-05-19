@@ -5,8 +5,6 @@ import (
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
-
-	"github.com/jackc/pgx/v5"
 )
 
 type ExpenseRepository struct {
@@ -16,7 +14,7 @@ func NewExpenseRepository() *ExpenseRepository {
 	return &ExpenseRepository{}
 }
 
-func (r *ExpenseRepository) CreateExpense(ctx context.Context, tx pgx.Tx, expense *entity.Expense) (string, error) {
+func (r *ExpenseRepository) CreateExpense(ctx context.Context, db database.PgxExt, expense *entity.Expense) (string, error) {
 	query := `
 		INSERT INTO expenses (
 			group_id,
@@ -37,7 +35,7 @@ func (r *ExpenseRepository) CreateExpense(ctx context.Context, tx pgx.Tx, expens
 	`
 
 	var expenseID string
-	err := tx.QueryRow(
+	err := db.QueryRow(
 		ctx,
 		query,
 
@@ -60,7 +58,7 @@ func (r *ExpenseRepository) CreateExpense(ctx context.Context, tx pgx.Tx, expens
 	return expenseID, err
 }
 
-func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, tx pgx.Tx, participants []entity.ExpenseParticipant) error {
+func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, db database.PgxExt, participants []entity.ExpenseParticipant) error {
 	if len(participants) == 0 {
 		return nil
 	}
@@ -85,7 +83,7 @@ func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, t
 		)
 	}
 
-	_, err := tx.Exec(ctx, query, args...)
+	_, err := db.Exec(ctx, query, args...)
 
 	return err
 }
