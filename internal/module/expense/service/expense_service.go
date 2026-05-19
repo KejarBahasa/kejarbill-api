@@ -12,6 +12,7 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
@@ -28,8 +29,8 @@ type ExpenseService struct {
 	ledgerRepo    *ledgerRepoPkg.LedgerRepository
 	ledgerService *ledgerServicePkg.LedgerService
 
-	groupRepo *groupRepoPkg.GroupRepository
-
+	groupRepo            *groupRepoPkg.GroupRepository
+	groupMemberRepo      *groupMemberRepoPkg.GroupMemberRepository
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 }
 
@@ -42,7 +43,7 @@ func NewExpenseService(
 	ledgerService *ledgerServicePkg.LedgerService,
 
 	groupRepo *groupRepoPkg.GroupRepository,
-
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
 ) *ExpenseService {
 	return &ExpenseService{
@@ -53,8 +54,8 @@ func NewExpenseService(
 		ledgerRepo:    ledgerRepo,
 		ledgerService: ledgerService,
 
-		groupRepo: groupRepo,
-
+		groupRepo:            groupRepo,
+		groupMemberRepo:      groupMemberRepo,
 		groupParticipantRepo: groupParticipantRepo,
 	}
 }
@@ -72,7 +73,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.groupParticipantRepo.ExistsByUserIDAndGroupID(ctx, s.db, userID, req.GroupID)
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, req.GroupID, userID)
 	if err != nil {
 		return "", err
 	}

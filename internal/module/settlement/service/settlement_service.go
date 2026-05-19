@@ -12,7 +12,7 @@ import (
 	ledgerEntity "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/entity"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 
-	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
 
@@ -36,7 +36,7 @@ type SettlementService struct {
 
 	groupRepo *groupRepoPkg.GroupRepository
 
-	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository
 }
 
 func NewSettlementService(
@@ -48,7 +48,7 @@ func NewSettlementService(
 
 	groupRepo *groupRepoPkg.GroupRepository,
 
-	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
 ) *SettlementService {
 
 	return &SettlementService{
@@ -60,7 +60,7 @@ func NewSettlementService(
 
 		groupRepo: groupRepo,
 
-		groupParticipantRepo: groupParticipantRepo,
+		groupMemberRepo: groupMemberRepo,
 	}
 }
 
@@ -74,7 +74,7 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 		return "", expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.groupParticipantRepo.ExistsByUserIDAndGroupID(ctx, s.db, userID, groupID)
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, userID, groupID)
 	if err != nil {
 		return "", err
 	}

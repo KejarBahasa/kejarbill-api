@@ -8,7 +8,7 @@ import (
 	ledgerDto "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/dto"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 
-	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 
@@ -16,17 +16,17 @@ import (
 )
 
 type BalanceService struct {
-	db                   *pgxpool.Pool
-	ledgerRepo           *ledgerRepoPkg.LedgerRepository
-	groupRepo            *groupRepoPkg.GroupRepository
-	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
+	db              *pgxpool.Pool
+	ledgerRepo      *ledgerRepoPkg.LedgerRepository
+	groupRepo       *groupRepoPkg.GroupRepository
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository
 }
 
 func NewBalanceService(
 	db *pgxpool.Pool,
 	ledgerRepo *ledgerRepoPkg.LedgerRepository,
 	groupRepo *groupRepoPkg.GroupRepository,
-	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
 ) *BalanceService {
 	return &BalanceService{
 		db: db,
@@ -35,7 +35,7 @@ func NewBalanceService(
 
 		groupRepo: groupRepo,
 
-		groupParticipantRepo: groupParticipantRepo,
+		groupMemberRepo: groupMemberRepo,
 	}
 }
 
@@ -48,7 +48,7 @@ func (s *BalanceService) GetGroupBalances(ctx context.Context, userID, groupID s
 		return nil, expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.groupParticipantRepo.ExistsByUserIDAndGroupID(ctx, s.db, userID, groupID)
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, userID, groupID)
 	if err != nil {
 		return nil, expenseConstants.ErrForbiddenGroupAccess
 	}

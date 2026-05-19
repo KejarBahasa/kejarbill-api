@@ -16,6 +16,8 @@ import (
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 	groupServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/service"
 
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
+
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
@@ -79,6 +81,7 @@ func BuildDependency() (*Dependency, error) {
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ledgerRepo := ledgerRepoPkg.NewLedgerRepository()
 	groupRepo := groupRepoPkg.NewGroupRepository()
+	groupMemberRepo := groupMemberRepoPkg.NewGroupMemberRepository()
 	groupParticipantRepo := groupParticipantRepoPkg.NewGroupParticipantRepository()
 	expenseRepo := expenseRepoPkg.NewExpenseRepository()
 	settlementRepo := settlementRepoPkg.NewSettlementRepository()
@@ -89,9 +92,9 @@ func BuildDependency() (*Dependency, error) {
 	userService := userServicePkg.NewUserService(userRepo)
 	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupParticipantRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
-	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupParticipantRepo)
-	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupParticipantRepo)
-	settlementService := settlementServicePkg.NewSettlementService(db, settlementRepo, ledgerRepo, groupRepo, groupParticipantRepo)
+	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupMemberRepo, groupParticipantRepo)
+	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupMemberRepo)
+	settlementService := settlementServicePkg.NewSettlementService(db, settlementRepo, ledgerRepo, groupRepo, groupMemberRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)
