@@ -20,7 +20,9 @@ import (
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 	groupMemberServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/service"
 
+	groupParticipantHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/handler"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+	groupParticipantServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/service"
 
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
@@ -60,6 +62,8 @@ type Dependency struct {
 
 	GroupMemberHandler *groupMemberHandlerPkg.GroupMemberHandler
 
+	GroupParticipantHandler *groupParticipantHandlerPkg.GroupParticipantHandler
+
 	ExpenseHandler *expenseHandlerPkg.ExpenseHandler
 
 	BalanceHandler *balanceHandlerPkg.BalanceHandler
@@ -95,6 +99,7 @@ func BuildDependency() (*Dependency, error) {
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
 	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupMemberRepo, groupParticipantRepo)
+	groupParticipantService := groupParticipantServicePkg.NewGroupParticipantService(db, groupRepo, groupMemberRepo, groupParticipantRepo)
 	groupMemberService := groupMemberServicePkg.NewGroupMemberService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
 	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupMemberRepo, groupParticipantRepo)
@@ -105,6 +110,7 @@ func BuildDependency() (*Dependency, error) {
 	userHandler := userHandlerPkg.NewUserHandler(userService)
 	groupHandler := groupHandlerPkg.NewGroupHandler(groupService)
 	groupMemberHandler := groupMemberHandlerPkg.NewGroupMemberHandler(groupMemberService)
+	groupParticipantHandler := groupParticipantHandlerPkg.NewGroupParticipantHandler(groupParticipantService)
 	expenseHandler := expenseHandlerPkg.NewExpenseHandler(expenseService)
 	balanceHandler := balanceHandlerPkg.NewBalanceHandler(balanceService)
 	settlementHandler := settlementHandlerPkg.NewSettlementHandler(settlementService)
@@ -124,6 +130,8 @@ func BuildDependency() (*Dependency, error) {
 		GroupHandler: groupHandler,
 
 		GroupMemberHandler: groupMemberHandler,
+
+		GroupParticipantHandler: groupParticipantHandler,
 
 		ExpenseHandler: expenseHandler,
 
