@@ -4,6 +4,7 @@ import (
 	authRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/route"
 	expenseRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/route"
 	groupRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/route"
+	settlementRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/route"
 	userRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/route"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 
@@ -31,4 +32,7 @@ func RegisterRoute(
 
 	// EXPENSE
 	expenseRoutePkg.ExpenseRoute(v1, dep.AuthMiddleware, dep.ExpenseHandler)
+
+	// SETTLEMENT
+	settlementRoutePkg.SettlementRoute(v1, dep.AuthMiddleware, dep.SettlementHandler)
 }
