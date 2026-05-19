@@ -89,8 +89,42 @@ func (r *GroupParticipantRepository) Create(ctx context.Context, db database.Pgx
 		participant.UserID,
 		participant.DisplayName,
 		participant.ParticipantType,
-		participant.UserID,
+		participant.CreatedBy,
 	)
+
+	return err
+}
+
+func (r *GroupParticipantRepository) BulkCreate(ctx context.Context, db database.PgxExt, participants []entity.GroupParticipant) error {
+	if len(participants) == 0 {
+		return nil
+	}
+
+	query := database.BuildBulkInsertQuery(
+		"group_participants",
+		[]string{
+			"group_id",
+			"user_id",
+			"participant_type",
+			"display_name",
+			"created_by",
+		},
+		len(participants),
+	)
+
+	args := make([]any, 0)
+	for _, participant := range participants {
+		args = append(
+			args,
+			participant.GroupID,
+			participant.UserID,
+			participant.ParticipantType,
+			participant.DisplayName,
+			participant.CreatedBy,
+		)
+	}
+
+	_, err := db.Exec(ctx, query, args...)
 
 	return err
 }

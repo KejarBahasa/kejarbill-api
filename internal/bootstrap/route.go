@@ -28,7 +28,7 @@ func RegisterRoute(
 	userRoutePkg.UserRoute(v1, dep.AuthMiddleware, dep.UserHandler)
 
 	// GROUP
-	groupRoutePkg.GroupRoute(v1, dep.AuthMiddleware, dep.GroupHandler, dep.BalanceHandler)
+	groupRoutePkg.GroupRoute(v1, dep.AuthMiddleware, dep.GroupHandler, dep.GroupMemberHandler, dep.BalanceHandler)
 
 	// EXPENSE
 	expenseRoutePkg.ExpenseRoute(v1, dep.AuthMiddleware, dep.ExpenseHandler)

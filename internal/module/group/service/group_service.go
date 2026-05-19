@@ -6,10 +6,16 @@ import (
 	groupEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group/entity"
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 
+	groupMemberConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/constants"
+	groupMemberEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/entity"
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
+
+	groupParticipantConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/constants"
 	groupParticipantEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +26,8 @@ type GroupService struct {
 
 	groupRepo *groupRepoPkg.GroupRepository
 
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository
+
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 }
 
@@ -28,6 +36,8 @@ func NewGroupService(
 
 	groupRepo *groupRepoPkg.GroupRepository,
 
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
+
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
 ) *GroupService {
 
@@ -35,6 +45,8 @@ func NewGroupService(
 		db: db,
 
 		groupRepo: groupRepo,
+
+		groupMemberRepo: groupMemberRepo,
 
 		groupParticipantRepo: groupParticipantRepo,
 	}
@@ -52,11 +64,23 @@ func (s *GroupService) Create(ctx context.Context, userID string, name string) (
 		}
 
 		groupID = createdGroupID
+
+		err = s.groupMemberRepo.Create(ctx, tx, &groupMemberEntity.GroupMember{
+			GroupID: groupID,
+			UserID:  userID,
+			Role:    groupMemberConstants.RoleOwner,
+			Status:  groupMemberConstants.StatusActive,
+		})
+		if err != nil {
+			return err
+		}
+
 		err = s.groupParticipantRepo.Create(ctx, tx, &groupParticipantEntity.GroupParticipant{
 			GroupID:         groupID,
-			UserID:          userID,
+			UserID:          utils.PtrOrNil(userID),
 			DisplayName:     "You",
-			ParticipantType: "registered",
+			ParticipantType: groupParticipantConstants.TypeRegistered,
+			CreatedBy:       userID,
 		})
 		if err != nil {
 			return err

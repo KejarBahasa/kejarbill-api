@@ -15,6 +15,8 @@ var (
 
 	ErrGroupNotFound = errors.New("group not found")
 
+	ErrUserNotFound = errors.New("user not found")
+
 	ErrForbiddenGroupAccess = errors.New("forbidden group access")
 
 	ErrInvalidExpenseDate = errors.New("invalid expense date")
