@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/ledger/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/ledger/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 
@@ -54,4 +55,60 @@ func (r *LedgerRepository) BulkCreate(ctx context.Context, tx pgx.Tx, ledgers []
 	_, err := tx.Exec(ctx, query, args...)
 
 	return err
+}
+
+func (r *LedgerRepository) GetGroupBalances(ctx context.Context, db database.PgxExt, groupID string) ([]dto.GroupBalanceResponse, error) {
+	query := `
+		SELECT
+			al.from_participant_id,
+			fp.display_name,
+			al.to_participant_id,
+			tp.display_name,
+			SUM(al.amount)::BIGINT AS amount
+		FROM account_ledger al
+		JOIN group_participants fp
+			ON fp.id = al.from_participant_id
+		JOIN group_participants tp
+			ON tp.id = al.to_participant_id
+		WHERE
+			al.group_id = $1
+		GROUP BY
+			al.from_participant_id,
+			fp.display_name,
+			al.to_participant_id,
+			tp.display_name
+		HAVING SUM(al.amount) > 0
+		ORDER BY amount DESC
+	`
+
+	rows, err := db.Query(
+		ctx,
+		query,
+		groupID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	balances := make([]dto.GroupBalanceResponse, 0)
+	for rows.Next() {
+		var balance dto.GroupBalanceResponse
+		err := rows.Scan(
+			&balance.FromParticipant.ID,
+
+			&balance.FromParticipant.DisplayName,
+			&balance.ToParticipant.ID,
+			&balance.ToParticipant.DisplayName,
+
+			&balance.Amount,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		balances = append(balances, balance)
+	}
+
+	return balances, nil
 }

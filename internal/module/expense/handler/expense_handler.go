@@ -44,6 +44,9 @@ func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 		case errors.Is(err, expenseConstants.ErrGroupNotFound):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
 		case errors.Is(err, expenseConstants.ErrPayerNotIncludedInParticipants):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 

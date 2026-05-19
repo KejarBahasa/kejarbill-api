@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/group/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 )
 
@@ -28,4 +29,21 @@ func (r *GroupRepository) ExistsByID(ctx context.Context, db database.PgxExt, gr
 	err := db.QueryRow(ctx, query, groupID).Scan(&exists)
 
 	return exists, err
+}
+
+func (r *GroupRepository) Create(ctx context.Context, db database.PgxExt, group *entity.Group) (string, error) {
+	query := `
+		INSERT INTO groups (
+			name, created_by
+		)
+		VALUES (
+			$1, $2
+		)
+		RETURNING id
+	`
+
+	var groupID string
+	err := db.QueryRow(ctx, query, group.Name, group.CreatedBy).Scan(&groupID)
+
+	return groupID, err
 }

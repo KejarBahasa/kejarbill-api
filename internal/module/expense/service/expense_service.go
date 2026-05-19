@@ -72,6 +72,14 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrGroupNotFound
 	}
 
+	hasAccess, err := s.participantRepo.ExistsByUserIDAndGroupID(ctx, s.db, userID, req.GroupID)
+	if err != nil {
+		return "", err
+	}
+	if !hasAccess {
+		return "", expenseConstants.ErrForbiddenGroupAccess
+	}
+
 	payerExists := false
 	for _, participantID := range req.ParticipantIDs {
 		if participantID == req.PayerParticipantID {

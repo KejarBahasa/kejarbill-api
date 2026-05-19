@@ -5,11 +5,16 @@ import (
 	authRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	authServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
 
+	balanceHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/handler"
+	balanceServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
+
 	expenseHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/handler"
 	expenseRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/repository"
 	expenseServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
 
+	groupHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/handler"
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+	groupServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/service"
 
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
@@ -43,7 +48,11 @@ type Dependency struct {
 
 	UserHandler *userHandlerPkg.UserHandler
 
+	GroupHandler *groupHandlerPkg.GroupHandler
+
 	ExpenseHandler *expenseHandlerPkg.ExpenseHandler
+
+	BalanceHandler *balanceHandlerPkg.BalanceHandler
 }
 
 func BuildDependency() (*Dependency, error) {
@@ -71,12 +80,16 @@ func BuildDependency() (*Dependency, error) {
 
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
+	groupService := groupServicePkg.NewGroupService(db, groupRepo, participantRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
 	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, participantRepo)
+	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, participantRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)
+	groupHandler := groupHandlerPkg.NewGroupHandler(groupService)
 	expenseHandler := expenseHandlerPkg.NewExpenseHandler(expenseService)
+	balanceHandler := balanceHandlerPkg.NewBalanceHandler(balanceService)
 
 	return &Dependency{
 		Config:         cfg,
@@ -90,6 +103,10 @@ func BuildDependency() (*Dependency, error) {
 
 		UserHandler: userHandler,
 
+		GroupHandler: groupHandler,
+
 		ExpenseHandler: expenseHandler,
+
+		BalanceHandler: balanceHandler,
 	}, nil
 }

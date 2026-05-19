@@ -9,8 +9,8 @@ import (
 
 func UserRoute(
 	api fiber.Router,
-	userHandler *handler.UserHandler,
 	authMiddleware *middleware.AuthMiddleware,
+	userHandler *handler.UserHandler,
 ) {
 
 	user := api.Group("/users", authMiddleware.Protected)

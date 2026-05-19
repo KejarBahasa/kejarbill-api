@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/constants"
 	goValidator "github.com/go-playground/validator/v10"
 )
 
@@ -12,7 +13,7 @@ var Validate = goValidator.New()
 func ParseValidationError(req any, err error, tags ...string) []ValidationError {
 	errors := make([]ValidationError, 0)
 	validationErrors := err.(goValidator.ValidationErrors)
-	tag := "json"
+	tag := constants.RequestTagJSON
 	if len(tags) > 0 && tags[0] != "" {
 		tag = tags[0]
 	}

@@ -3,6 +3,7 @@ package bootstrap
 import (
 	authRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/route"
 	expenseRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/route"
+	groupRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/route"
 	userRoutePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/route"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 
@@ -23,8 +24,11 @@ func RegisterRoute(
 	authRoutePkg.AuthRoute(v1, dep.AuthHandler)
 
 	// USER
-	userRoutePkg.UserRoute(v1, dep.UserHandler, dep.AuthMiddleware)
+	userRoutePkg.UserRoute(v1, dep.AuthMiddleware, dep.UserHandler)
+
+	// GROUP
+	groupRoutePkg.GroupRoute(v1, dep.AuthMiddleware, dep.GroupHandler, dep.BalanceHandler)
 
 	// EXPENSE
-	expenseRoutePkg.ExpenseRoute(v1, dep.ExpenseHandler, dep.AuthMiddleware)
+	expenseRoutePkg.ExpenseRoute(v1, dep.AuthMiddleware, dep.ExpenseHandler)
 }
