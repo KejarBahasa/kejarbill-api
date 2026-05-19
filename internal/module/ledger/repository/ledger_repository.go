@@ -112,3 +112,46 @@ func (r *LedgerRepository) GetGroupBalances(ctx context.Context, db database.Pgx
 
 	return balances, nil
 }
+
+func (r *LedgerRepository) GetOutstandingBalance(ctx context.Context, db database.PgxExt, groupID string, fromParticipantID string, toParticipantID string) (int64, error) {
+	query := `
+		SELECT
+			COALESCE(SUM(balance_amount), 0)::BIGINT
+		FROM (
+			SELECT
+				CASE
+					-- Expense:
+					-- B -> A = +100k
+					WHEN
+						from_participant_id = $2
+						AND to_participant_id = $3
+					THEN amount
+
+					-- Settlement:
+					-- A -> B = -40k
+					WHEN
+						from_participant_id = $3
+						AND to_participant_id = $2
+					THEN -amount
+					ELSE 0
+				END AS balance_amount
+
+			FROM account_ledger
+			WHERE
+				group_id = $1
+		) balances
+	`
+
+	var outstanding int64
+	err := db.QueryRow(
+		ctx,
+		query,
+
+		groupID,
+
+		fromParticipantID,
+		toParticipantID,
+	).Scan(&outstanding)
+
+	return outstanding, err
+}

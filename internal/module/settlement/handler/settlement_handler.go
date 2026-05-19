@@ -1,6 +1,11 @@
 package handler
 
 import (
+	"errors"
+
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+
+	settlementConstants "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/service"
 
@@ -39,7 +44,22 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 
 	settlementID, err := h.settlementService.Create(c.Context(), userID, params.GroupID, &body)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		switch {
+		case errors.Is(err, expenseConstants.ErrGroupNotFound):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, settlementConstants.ErrInvalidSettlementParticipants):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, settlementConstants.ErrSettlementAmountExceeded):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		}
 	}
 
 	return response.Success(c, "settlement created", fiber.Map{"id": settlementID})

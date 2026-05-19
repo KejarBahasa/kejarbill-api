@@ -14,7 +14,6 @@ import (
 
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 
-	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
 
 	settlementConstants "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
@@ -85,7 +84,20 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 	}
 
 	if req.FromParticipantID == req.ToParticipantID {
-		return "", constants.ErrInvalidSettlementParticipants
+		return "", settlementConstants.ErrInvalidSettlementParticipants
+	}
+
+	outstandingBalance, err := s.ledgerRepo.GetOutstandingBalance(ctx, s.db, groupID, req.FromParticipantID, req.ToParticipantID)
+	if err != nil {
+		return "", err
+	}
+
+	if outstandingBalance <= 0 {
+		return "", settlementConstants.ErrSettlementAmountExceeded
+	}
+
+	if req.Amount > outstandingBalance {
+		return "", settlementConstants.ErrSettlementAmountExceeded
 	}
 
 	paidAt, err := time.Parse(time.RFC3339, req.PaidAt)
