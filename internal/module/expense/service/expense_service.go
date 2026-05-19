@@ -12,9 +12,9 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
-	participantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/participant/repository"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -30,7 +30,7 @@ type ExpenseService struct {
 
 	groupRepo *groupRepoPkg.GroupRepository
 
-	participantRepo *participantRepoPkg.ParticipantRepository
+	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 }
 
 func NewExpenseService(
@@ -43,7 +43,7 @@ func NewExpenseService(
 
 	groupRepo *groupRepoPkg.GroupRepository,
 
-	participantRepo *participantRepoPkg.ParticipantRepository,
+	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
 ) *ExpenseService {
 	return &ExpenseService{
 		db: db,
@@ -55,7 +55,7 @@ func NewExpenseService(
 
 		groupRepo: groupRepo,
 
-		participantRepo: participantRepo,
+		groupParticipantRepo: groupParticipantRepo,
 	}
 }
 
@@ -72,7 +72,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.participantRepo.ExistsByUserIDAndGroupID(ctx, s.db, userID, req.GroupID)
+	hasAccess, err := s.groupParticipantRepo.ExistsByUserIDAndGroupID(ctx, s.db, userID, req.GroupID)
 	if err != nil {
 		return "", err
 	}
@@ -91,7 +91,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrPayerNotIncludedInParticipants
 	}
 
-	payerExistsInGroup, err := s.participantRepo.ExistsByIDAndGroupID(ctx, s.db, req.GroupID, req.PayerParticipantID)
+	payerExistsInGroup, err := s.groupParticipantRepo.ExistsByIDAndGroupID(ctx, s.db, req.GroupID, req.PayerParticipantID)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +103,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrDuplicateParticipants
 	}
 
-	participantCount, err := s.participantRepo.CountByIDsAndGroupID(ctx, s.db, req.GroupID, req.ParticipantIDs)
+	participantCount, err := s.groupParticipantRepo.CountByIDsAndGroupID(ctx, s.db, req.GroupID, req.ParticipantIDs)
 	if err != nil {
 		return "", err
 	}

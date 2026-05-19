@@ -3,18 +3,18 @@ package repository
 import (
 	"context"
 
-	"github.com/KejarBahasa/kejarbill-api/internal/module/participant/entity"
+	"github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 )
 
-type ParticipantRepository struct {
+type GroupParticipantRepository struct {
 }
 
-func NewParticipantRepository() *ParticipantRepository {
-	return &ParticipantRepository{}
+func NewGroupParticipantRepository() *GroupParticipantRepository {
+	return &GroupParticipantRepository{}
 }
 
-func (r *ParticipantRepository) CountByIDsAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantIDs []string) (int, error) {
+func (r *GroupParticipantRepository) CountByIDsAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantIDs []string) (int, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM group_participants
@@ -29,7 +29,7 @@ func (r *ParticipantRepository) CountByIDsAndGroupID(ctx context.Context, db dat
 	return count, err
 }
 
-func (r *ParticipantRepository) ExistsByIDAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantID string) (bool, error) {
+func (r *GroupParticipantRepository) ExistsByIDAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantID string) (bool, error) {
 	query := `
 		SELECT EXISTS (
 			SELECT 1
@@ -46,7 +46,7 @@ func (r *ParticipantRepository) ExistsByIDAndGroupID(ctx context.Context, db dat
 	return exists, err
 }
 
-func (r *ParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Context, db database.PgxExt, userID string, groupID string) (bool, error) {
+func (r *GroupParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Context, db database.PgxExt, userID string, groupID string) (bool, error) {
 	query := `
 		SELECT EXISTS (
 			SELECT 1
@@ -63,7 +63,7 @@ func (r *ParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Context, db
 	return exists, err
 }
 
-func (r *ParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.Participant) error {
+func (r *GroupParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.GroupParticipant) error {
 	query := `
 		INSERT INTO group_participants (
 			group_id,

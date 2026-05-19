@@ -6,8 +6,8 @@ import (
 	groupEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group/entity"
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 
-	participantEntity "github.com/KejarBahasa/kejarbill-api/internal/module/participant/entity"
-	participantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/participant/repository"
+	groupParticipantEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
+	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 
@@ -20,7 +20,7 @@ type GroupService struct {
 
 	groupRepo *groupRepoPkg.GroupRepository
 
-	participantRepo *participantRepoPkg.ParticipantRepository
+	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 }
 
 func NewGroupService(
@@ -28,7 +28,7 @@ func NewGroupService(
 
 	groupRepo *groupRepoPkg.GroupRepository,
 
-	participantRepo *participantRepoPkg.ParticipantRepository,
+	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
 ) *GroupService {
 
 	return &GroupService{
@@ -36,7 +36,7 @@ func NewGroupService(
 
 		groupRepo: groupRepo,
 
-		participantRepo: participantRepo,
+		groupParticipantRepo: groupParticipantRepo,
 	}
 }
 
@@ -52,7 +52,7 @@ func (s *GroupService) Create(ctx context.Context, userID string, name string) (
 		}
 
 		groupID = createdGroupID
-		err = s.participantRepo.Create(ctx, tx, &participantEntity.Participant{
+		err = s.groupParticipantRepo.Create(ctx, tx, &groupParticipantEntity.GroupParticipant{
 			GroupID:         groupID,
 			UserID:          userID,
 			DisplayName:     "You",

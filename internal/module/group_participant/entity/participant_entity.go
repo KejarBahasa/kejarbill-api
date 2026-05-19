@@ -1,6 +1,6 @@
 package entity
 
-type Participant struct {
+type GroupParticipant struct {
 	ID              string
 	GroupID         string
 	UserID          string

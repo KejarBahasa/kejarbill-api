@@ -16,10 +16,10 @@ import (
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 	groupServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/service"
 
+	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
-
-	participantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/participant/repository"
 
 	userHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/handler"
 	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
@@ -73,17 +73,17 @@ func BuildDependency() (*Dependency, error) {
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ledgerRepo := ledgerRepoPkg.NewLedgerRepository()
 	groupRepo := groupRepoPkg.NewGroupRepository()
-	participantRepo := participantRepoPkg.NewParticipantRepository()
+	groupParticipantRepo := groupParticipantRepoPkg.NewGroupParticipantRepository()
 	expenseRepo := expenseRepoPkg.NewExpenseRepository()
 
 	authMiddleware := middleware.NewAuthMiddleware(pasetoMaker, authRepo)
 
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
-	groupService := groupServicePkg.NewGroupService(db, groupRepo, participantRepo)
+	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupParticipantRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
-	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, participantRepo)
-	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, participantRepo)
+	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupParticipantRepo)
+	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupParticipantRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)
