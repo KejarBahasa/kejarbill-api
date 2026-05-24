@@ -9,8 +9,8 @@ import (
 
 func ExpenseRoute(
 	api fiber.Router,
-	expenseHandler *handler.ExpenseHandler,
 	authMiddleware *middleware.AuthMiddleware,
+	expenseHandler *handler.ExpenseHandler,
 ) {
 	expense := api.Group("/expenses", authMiddleware.Protected)
 

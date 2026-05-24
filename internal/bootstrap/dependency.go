@@ -5,16 +5,35 @@ import (
 	authRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	authServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
 
-	userHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/handler"
-	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
-	userServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/service"
+	balanceHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/handler"
+	balanceServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
 	expenseHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/handler"
 	expenseRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/repository"
 	expenseServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
 
+	groupHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/handler"
+	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+	groupServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/service"
+
+	groupMemberHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/handler"
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
+	groupMemberServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/service"
+
+	groupParticipantHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/handler"
+	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+	groupParticipantServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/service"
+
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
+
+	settlementHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/handler"
+	settlementRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/repository"
+	settlementServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/service"
+
+	userHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/handler"
+	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
+	userServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/service"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/config"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
@@ -39,7 +58,17 @@ type Dependency struct {
 
 	UserHandler *userHandlerPkg.UserHandler
 
+	GroupHandler *groupHandlerPkg.GroupHandler
+
+	GroupMemberHandler *groupMemberHandlerPkg.GroupMemberHandler
+
+	GroupParticipantHandler *groupParticipantHandlerPkg.GroupParticipantHandler
+
 	ExpenseHandler *expenseHandlerPkg.ExpenseHandler
+
+	BalanceHandler *balanceHandlerPkg.BalanceHandler
+
+	SettlementHandler *settlementHandlerPkg.SettlementHandler
 }
 
 func BuildDependency() (*Dependency, error) {
@@ -59,18 +88,32 @@ func BuildDependency() (*Dependency, error) {
 	authRepo := authRepoPkg.NewAuthRepository(db)
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ledgerRepo := ledgerRepoPkg.NewLedgerRepository()
+	groupRepo := groupRepoPkg.NewGroupRepository()
+	groupMemberRepo := groupMemberRepoPkg.NewGroupMemberRepository()
+	groupParticipantRepo := groupParticipantRepoPkg.NewGroupParticipantRepository()
 	expenseRepo := expenseRepoPkg.NewExpenseRepository()
+	settlementRepo := settlementRepoPkg.NewSettlementRepository()
 
 	authMiddleware := middleware.NewAuthMiddleware(pasetoMaker, authRepo)
 
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
+	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupMemberRepo, groupParticipantRepo)
+	groupParticipantService := groupParticipantServicePkg.NewGroupParticipantService(db, groupRepo, groupMemberRepo, groupParticipantRepo)
+	groupMemberService := groupMemberServicePkg.NewGroupMemberService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
-	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService)
+	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupMemberRepo, groupParticipantRepo)
+	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupMemberRepo)
+	settlementService := settlementServicePkg.NewSettlementService(db, settlementRepo, ledgerRepo, groupRepo, groupMemberRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)
+	groupHandler := groupHandlerPkg.NewGroupHandler(groupService)
+	groupMemberHandler := groupMemberHandlerPkg.NewGroupMemberHandler(groupMemberService)
+	groupParticipantHandler := groupParticipantHandlerPkg.NewGroupParticipantHandler(groupParticipantService)
 	expenseHandler := expenseHandlerPkg.NewExpenseHandler(expenseService)
+	balanceHandler := balanceHandlerPkg.NewBalanceHandler(balanceService)
+	settlementHandler := settlementHandlerPkg.NewSettlementHandler(settlementService)
 
 	return &Dependency{
 		Config:         cfg,
@@ -84,6 +127,16 @@ func BuildDependency() (*Dependency, error) {
 
 		UserHandler: userHandler,
 
+		GroupHandler: groupHandler,
+
+		GroupMemberHandler: groupMemberHandler,
+
+		GroupParticipantHandler: groupParticipantHandler,
+
 		ExpenseHandler: expenseHandler,
+
+		BalanceHandler: balanceHandler,
+
+		SettlementHandler: settlementHandler,
 	}, nil
 }

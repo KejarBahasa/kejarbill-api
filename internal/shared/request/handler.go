@@ -18,7 +18,7 @@ func HandleValidationError(c fiber.Ctx, err error) error {
 		case errors.Is(err, ErrInvalidRequestBody):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
-		case errors.Is(err, ErrInvalidRequestParams):
+		case errors.Is(err, ErrInvalidPathParams):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
 		case errors.Is(err, ErrInvalidRequestQuery):

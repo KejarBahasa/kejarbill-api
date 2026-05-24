@@ -1,0 +1,177 @@
+package repository
+
+import (
+	"context"
+
+	"github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+)
+
+type GroupParticipantRepository struct {
+}
+
+func NewGroupParticipantRepository() *GroupParticipantRepository {
+	return &GroupParticipantRepository{}
+}
+
+func (r *GroupParticipantRepository) CountByIDsAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantIDs []string) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM group_participants
+		WHERE
+			group_id = $1
+			AND id = ANY($2)
+	`
+
+	var count int
+	err := db.QueryRow(ctx, query, groupID, participantIDs).Scan(&count)
+
+	return count, err
+}
+
+func (r *GroupParticipantRepository) ExistsByIDAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM group_participants
+			WHERE
+				id = $1
+				AND group_id = $2
+		)
+	`
+
+	var exists bool
+	err := db.QueryRow(ctx, query, participantID, groupID).Scan(&exists)
+
+	return exists, err
+}
+
+func (r *GroupParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Context, db database.PgxExt, userID string, groupID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM group_participants
+			WHERE
+				user_id = $1
+				AND group_id = $2
+		)
+	`
+
+	var exists bool
+	err := db.QueryRow(ctx, query, userID, groupID).Scan(&exists)
+
+	return exists, err
+}
+
+func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.GroupParticipant, error) {
+	query := `
+		SELECT
+			id,
+			group_id,
+			user_id,
+			participant_type,
+			display_name,
+			created_by,
+			created_at,
+			updated_at
+		FROM group_participants
+		WHERE group_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := db.Query(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	participants := make([]entity.GroupParticipant, 0)
+
+	for rows.Next() {
+		var participant entity.GroupParticipant
+		err := rows.Scan(
+			&participant.ID,
+			&participant.GroupID,
+			&participant.UserID,
+			&participant.ParticipantType,
+			&participant.DisplayName,
+			&participant.CreatedBy,
+			&participant.CreatedAt,
+			&participant.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		participants = append(participants, participant)
+	}
+
+	return participants, nil
+}
+
+func (r *GroupParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.GroupParticipant) error {
+	query := `
+		INSERT INTO group_participants (
+			group_id,
+			user_id,
+			display_name,
+			participant_type,
+			created_by
+		)
+		VALUES (
+			$1,
+			$2,
+			$3,
+			$4,
+			$5
+		)
+	`
+
+	_, err := db.Exec(
+		ctx,
+		query,
+
+		participant.GroupID,
+		participant.UserID,
+		participant.DisplayName,
+		participant.ParticipantType,
+		participant.CreatedBy,
+	)
+
+	return err
+}
+
+func (r *GroupParticipantRepository) BulkCreate(ctx context.Context, db database.PgxExt, participants []entity.GroupParticipant) error {
+	if len(participants) == 0 {
+		return nil
+	}
+
+	query := database.BuildBulkInsertQuery(
+		"group_participants",
+		[]string{
+			"group_id",
+			"user_id",
+			"participant_type",
+			"display_name",
+			"created_by",
+		},
+		len(participants),
+	)
+
+	args := make([]any, 0)
+	for _, participant := range participants {
+		args = append(
+			args,
+			participant.GroupID,
+			participant.UserID,
+			participant.ParticipantType,
+			participant.DisplayName,
+			participant.CreatedBy,
+		)
+	}
+
+	_, err := db.Exec(ctx, query, args...)
+
+	return err
+}

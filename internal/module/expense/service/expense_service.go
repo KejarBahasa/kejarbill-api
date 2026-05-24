@@ -11,10 +11,12 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
+	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
+	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,6 +27,10 @@ type ExpenseService struct {
 
 	ledgerRepo    *ledgerRepoPkg.LedgerRepository
 	ledgerService *ledgerServicePkg.LedgerService
+
+	groupRepo            *groupRepoPkg.GroupRepository
+	groupMemberRepo      *groupMemberRepoPkg.GroupMemberRepository
+	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 }
 
 func NewExpenseService(
@@ -34,8 +40,11 @@ func NewExpenseService(
 
 	ledgerRepo *ledgerRepoPkg.LedgerRepository,
 	ledgerService *ledgerServicePkg.LedgerService,
-) *ExpenseService {
 
+	groupRepo *groupRepoPkg.GroupRepository,
+	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
+	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
+) *ExpenseService {
 	return &ExpenseService{
 		db: db,
 
@@ -43,6 +52,10 @@ func NewExpenseService(
 
 		ledgerRepo:    ledgerRepo,
 		ledgerService: ledgerService,
+
+		groupRepo:            groupRepo,
+		groupMemberRepo:      groupMemberRepo,
+		groupParticipantRepo: groupParticipantRepo,
 	}
 }
 
@@ -51,8 +64,51 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrParticipantsRequired
 	}
 
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, req.GroupID)
+	if err != nil {
+		return "", err
+	}
+	if !groupExists {
+		return "", expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, req.GroupID, userID)
+	if err != nil {
+		return "", err
+	}
+	if !hasAccess {
+		return "", expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	payerExists := false
+	for _, participantID := range req.ParticipantIDs {
+		if participantID == req.PayerParticipantID {
+			payerExists = true
+			break
+		}
+	}
+	if !payerExists {
+		return "", expenseConstants.ErrPayerNotIncludedInParticipants
+	}
+
+	payerExistsInGroup, err := s.groupParticipantRepo.ExistsByIDAndGroupID(ctx, s.db, req.GroupID, req.PayerParticipantID)
+	if err != nil {
+		return "", err
+	}
+	if !payerExistsInGroup {
+		return "", expenseConstants.ErrPayerParticipantNotInGroup
+	}
+
 	if utils.HasDuplicateString(req.ParticipantIDs) {
 		return "", expenseConstants.ErrDuplicateParticipants
+	}
+
+	participantCount, err := s.groupParticipantRepo.CountByIDsAndGroupID(ctx, s.db, req.GroupID, req.ParticipantIDs)
+	if err != nil {
+		return "", err
+	}
+	if participantCount != len(req.ParticipantIDs) {
+		return "", expenseConstants.ErrParticipantNotInGroup
 	}
 
 	expenseDate, err := time.Parse(time.RFC3339, req.ExpenseDate)
@@ -67,7 +123,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 	shareAmount := req.TotalAmount / int64(len(req.ParticipantIDs))
 
 	var expenseID string
-	err = database.WithTransaction(ctx, s.db, func(tx pgx.Tx) error {
+	err = database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		createdExpenseID, err := s.expenseRepo.CreateExpense(ctx, tx, &entity.Expense{
 			GroupID:             req.GroupID,
 			Title:               req.Title,
@@ -117,4 +173,29 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 	})
 
 	return expenseID, err
+}
+
+func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]entity.ExpenseTimeline, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	expenses, err := s.expenseRepo.FindByGroupID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	return expenses, nil
 }
