@@ -44,3 +44,31 @@ func (h *GroupParticipantHandler) CreateGuestParticipants(c fiber.Ctx) error {
 
 	return response.Success(c, "guest participants created", nil)
 }
+
+func (h *GroupParticipantHandler) GetByGroupID(c fiber.Ctx) error {
+	var params groupParticipantDto.CreateGuestParticipantsParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	participants, err := h.groupParticipantService.GetByGroupID(c.Context(), requesterUserID, params.GroupID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	result := make([]groupParticipantDto.ParticipantResponse, 0, len(participants))
+	for _, participant := range participants {
+		result = append(result, groupParticipantDto.ParticipantResponse{
+			ID:              participant.ID,
+			UserID:          participant.UserID,
+			ParticipantType: participant.ParticipantType,
+			DisplayName:     participant.DisplayName,
+		})
+	}
+
+	return response.Success(c, "participants fetched", fiber.Map{
+		"participants": result,
+	})
+}

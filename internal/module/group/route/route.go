@@ -25,6 +25,7 @@ func GroupRoute(
 	group.Post("/:group_id/members", groupMemberHandler.AddMember)
 	group.Post("/:group_id/members/bulk", groupMemberHandler.AddMemberBulk)
 
+	group.Get("/:group_id/participants", groupParticipantHandler.GetByGroupID)
 	group.Post("/:group_id/participants/guests", groupParticipantHandler.CreateGuestParticipants)
 
 	group.Get("/:group_id/balances", balanceHandler.GetGroupBalances)

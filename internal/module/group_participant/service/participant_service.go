@@ -94,3 +94,28 @@ func (s *GroupParticipantService) CreateGuestParticipants(ctx context.Context, r
 		return s.participantRepo.BulkCreate(ctx, tx, participants)
 	})
 }
+
+func (s *GroupParticipantService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]participantEntity.GroupParticipant, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	participants, err := s.participantRepo.FindByGroupID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	return participants, nil
+}

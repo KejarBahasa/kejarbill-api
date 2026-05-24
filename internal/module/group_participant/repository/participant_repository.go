@@ -63,6 +63,53 @@ func (r *GroupParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Contex
 	return exists, err
 }
 
+func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.GroupParticipant, error) {
+	query := `
+		SELECT
+			id,
+			group_id,
+			user_id,
+			participant_type,
+			display_name,
+			created_by,
+			created_at,
+			updated_at
+		FROM group_participants
+		WHERE group_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := db.Query(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	participants := make([]entity.GroupParticipant, 0)
+
+	for rows.Next() {
+		var participant entity.GroupParticipant
+		err := rows.Scan(
+			&participant.ID,
+			&participant.GroupID,
+			&participant.UserID,
+			&participant.ParticipantType,
+			&participant.DisplayName,
+			&participant.CreatedBy,
+			&participant.CreatedAt,
+			&participant.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		participants = append(participants, participant)
+	}
+
+	return participants, nil
+}
+
 func (r *GroupParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.GroupParticipant) error {
 	query := `
 		INSERT INTO group_participants (
