@@ -2,10 +2,13 @@ package handler
 
 import (
 	"errors"
+	"time"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
+
+	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/dto"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/request"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
@@ -68,4 +71,40 @@ func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "expense created", fiber.Map{"id": expenseID})
+}
+
+func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
+	var params groupDto.GroupIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	expenses, err := h.expenseService.GetByGroupID(c.Context(), requesterUserID, params.GroupID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	result := make([]dto.ExpenseTimelineResponse, 0, len(expenses))
+	for _, expense := range expenses {
+		result = append(result, dto.ExpenseTimelineResponse{
+			ID:          expense.ID,
+			Title:       expense.Title,
+			Description: expense.Description,
+			Currency:    expense.Currency,
+			TotalAmount: expense.TotalAmount,
+			ExpenseDate: expense.ExpenseDate.Format(
+				time.RFC3339,
+			),
+			Payer: dto.ExpenseTimelinePayerResponse{
+				ParticipantID: expense.PayerParticipantID,
+				DisplayName:   expense.PayerDisplayName,
+			},
+		})
+	}
+
+	return response.Success(c, "expenses fetched", fiber.Map{
+		"expenses": result,
+	})
 }

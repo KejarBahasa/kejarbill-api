@@ -174,3 +174,28 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 
 	return expenseID, err
 }
+
+func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]entity.ExpenseTimeline, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	expenses, err := s.expenseRepo.FindByGroupID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	return expenses, nil
+}

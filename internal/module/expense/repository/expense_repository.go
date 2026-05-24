@@ -87,3 +87,52 @@ func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, d
 
 	return err
 }
+
+func (r *ExpenseRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.ExpenseTimeline, error) {
+	query := `
+		SELECT
+			e.id,
+			e.title,
+			e.description,
+			e.currency,
+			e.total_amount,
+			e.expense_date,
+			p.id,
+			p.display_name
+		FROM expenses e
+		INNER JOIN group_participants p
+			ON p.id = e.paid_by_participant_id
+		WHERE e.group_id = $1
+		ORDER BY e.expense_date DESC
+	`
+
+	rows, err := db.Query(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	expenses := make([]entity.ExpenseTimeline, 0)
+
+	for rows.Next() {
+		var expense entity.ExpenseTimeline
+		err := rows.Scan(
+			&expense.ID,
+			&expense.Title,
+			&expense.Description,
+			&expense.Currency,
+			&expense.TotalAmount,
+			&expense.ExpenseDate,
+			&expense.PayerParticipantID,
+			&expense.PayerDisplayName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		expenses = append(expenses, expense)
+	}
+
+	return expenses, nil
+}

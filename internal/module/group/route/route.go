@@ -1,6 +1,7 @@
 package route
 
 import (
+	expenseHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/handler"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group/handler"
 	groupMemberHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/handler"
 	groupParticipantHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/handler"
@@ -17,6 +18,7 @@ func GroupRoute(
 	groupMemberHandler *groupMemberHandlerPkg.GroupMemberHandler,
 	groupParticipantHandler *groupParticipantHandlerPkg.GroupParticipantHandler,
 	balanceHandler *balanceHandlerPkg.BalanceHandler,
+	expenseHandler *expenseHandlerPkg.ExpenseHandler,
 ) {
 	group := api.Group("/groups", authMiddleware.Protected)
 
@@ -29,4 +31,6 @@ func GroupRoute(
 	group.Post("/:group_id/participants/guests", groupParticipantHandler.CreateGuestParticipants)
 
 	group.Get("/:group_id/balances", balanceHandler.GetGroupBalances)
+
+	group.Get("/:group_id/expenses", expenseHandler.GetByGroupID)
 }
