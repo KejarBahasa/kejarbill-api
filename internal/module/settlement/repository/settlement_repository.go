@@ -48,3 +48,58 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 
 	return settlementID, err
 }
+
+func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.SettlementTimeline, error) {
+	query := `
+		SELECT
+			s.id,
+			s.amount,
+			s.currency,
+			s.created_at,
+
+			fp.id,
+			fp.display_name,
+
+			tp.id,
+			tp.display_name
+		FROM settlements s
+		INNER JOIN group_participants fp
+			ON fp.id = s.from_participant_id
+		INNER JOIN group_participants tp
+			ON tp.id = s.to_participant_id
+		WHERE s.group_id = $1
+		ORDER BY s.created_at DESC
+	`
+
+	rows, err := db.Query(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	settlements := make([]entity.SettlementTimeline, 0)
+
+	for rows.Next() {
+		var settlement entity.SettlementTimeline
+		err := rows.Scan(
+			&settlement.ID,
+			&settlement.Amount,
+			&settlement.Currency,
+			&settlement.SettlementDate,
+
+			&settlement.FromParticipantID,
+			&settlement.FromDisplayName,
+
+			&settlement.ToParticipantID,
+			&settlement.ToDisplayName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		settlements = append(settlements, settlement)
+	}
+
+	return settlements, nil
+}

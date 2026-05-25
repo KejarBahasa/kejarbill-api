@@ -2,8 +2,11 @@ package handler
 
 import (
 	"errors"
+	"time"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+
+	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 
 	settlementConstants "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
@@ -63,4 +66,43 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "settlement created", fiber.Map{"id": settlementID})
+}
+
+func (h *SettlementHandler) GetByGroupID(c fiber.Ctx) error {
+	var params groupDto.GroupIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	settlements, err := h.settlementService.GetByGroupID(c.Context(), requesterUserID, params.GroupID)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	result := make([]dto.SettlementTimelineResponse, 0, len(settlements))
+
+	for _, settlement := range settlements {
+		result = append(result, dto.SettlementTimelineResponse{
+			ID:       settlement.ID,
+			Amount:   settlement.Amount,
+			Currency: settlement.Currency,
+			SettlementDate: settlement.SettlementDate.Format(
+				time.RFC3339,
+			),
+			FromParticipant: dto.SettlementParticipantResponse{
+				ParticipantID: settlement.FromParticipantID,
+				DisplayName:   settlement.FromDisplayName,
+			},
+			ToParticipant: dto.SettlementParticipantResponse{
+				ParticipantID: settlement.ToParticipantID,
+				DisplayName:   settlement.ToDisplayName,
+			},
+		})
+	}
+
+	return response.Success(c, "settlements fetched", fiber.Map{
+		"settlements": result,
+	})
 }

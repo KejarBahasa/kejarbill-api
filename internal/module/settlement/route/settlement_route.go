@@ -15,15 +15,4 @@ func SettlementRoute(
 
 	settlementHandler *handler.SettlementHandler,
 ) {
-
-	settlement := api.Group(
-		"/groups/:group_id/settlements",
-
-		authMiddleware.Protected,
-	)
-
-	settlement.Post(
-		"/",
-		settlementHandler.Create,
-	)
 }
