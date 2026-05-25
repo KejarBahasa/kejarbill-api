@@ -88,7 +88,20 @@ func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, d
 	return err
 }
 
-func (r *ExpenseRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.ExpenseTimeline, error) {
+func (r *ExpenseRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM expenses
+		WHERE group_id = $1
+	`
+
+	var total int64
+	err := db.QueryRow(ctx, query, groupID).Scan(&total)
+
+	return total, err
+}
+
+func (r *ExpenseRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string, limit int, offset int) ([]entity.ExpenseTimeline, error) {
 	query := `
 		SELECT
 			e.id,
@@ -104,9 +117,10 @@ func (r *ExpenseRepository) FindByGroupID(ctx context.Context, db database.PgxEx
 			ON p.id = e.paid_by_participant_id
 		WHERE e.group_id = $1
 		ORDER BY e.expense_date DESC
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := db.Query(ctx, query, groupID)
+	rows, err := db.Query(ctx, query, groupID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

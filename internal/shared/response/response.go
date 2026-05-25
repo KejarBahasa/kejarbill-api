@@ -2,6 +2,11 @@ package response
 
 import "github.com/gofiber/fiber/v3"
 
+const (
+	StatusSuccess = "success"
+	StatusError   = "error"
+)
+
 type PaginationMeta struct {
 	Page       int   `json:"page"`
 	Limit      int   `json:"limit"`
@@ -30,7 +35,7 @@ func Success(c fiber.Ctx, message string, data any, statusCode ...int) error {
 	}
 
 	return c.Status(code).JSON(Response[any]{
-		Status:  "success",
+		Status:  StatusSuccess,
 		Message: message,
 		Data:    data,
 	})
@@ -44,7 +49,7 @@ func SuccessWithMeta(c fiber.Ctx, message string, data any, meta *Meta, statusCo
 	}
 
 	return c.Status(code).JSON(Response[any]{
-		Status:  "success",
+		Status:  StatusSuccess,
 		Message: message,
 		Data:    data,
 		Meta:    meta,
@@ -54,7 +59,7 @@ func SuccessWithMeta(c fiber.Ctx, message string, data any, meta *Meta, statusCo
 // Error for handle all type of error response
 func Error(c fiber.Ctx, statusCode int, message string, errors any) error {
 	return c.Status(statusCode).JSON(Response[any]{
-		Status:  "error",
+		Status:  StatusError,
 		Message: message,
 		Data:    nil,
 		Errors:  errors,

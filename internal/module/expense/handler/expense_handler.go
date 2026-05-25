@@ -10,6 +10,7 @@ import (
 
 	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 
+	sharedDto "github.com/KejarBahasa/kejarbill-api/internal/shared/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/request"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
@@ -79,15 +80,20 @@ func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
 		return request.HandleValidationError(c, err)
 	}
 
+	var query sharedDto.PaginationQuery
+	if err := request.ValidateQuery(c, &query); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
 	requesterUserID := security.GetUserID(c)
 
-	expenses, err := h.expenseService.GetByGroupID(c.Context(), requesterUserID, params.GroupID)
+	expenses, err := h.expenseService.GetByGroupID(c.Context(), requesterUserID, params.GroupID, query.Page, query.Limit)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	result := make([]dto.ExpenseTimelineResponse, 0, len(expenses))
-	for _, expense := range expenses {
+	result := make([]dto.ExpenseTimelineResponse, 0, len(expenses.Expenses))
+	for _, expense := range expenses.Expenses {
 		result = append(result, dto.ExpenseTimelineResponse{
 			ID:          expense.ID,
 			Title:       expense.Title,
@@ -104,9 +110,19 @@ func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
 		})
 	}
 
-	return response.Success(c, "expenses fetched", fiber.Map{
-		"expenses": result,
-	})
+	return response.SuccessWithMeta(c, "expenses fetched",
+		fiber.Map{
+			"expenses": result,
+		},
+		&response.Meta{
+			Pagination: &response.PaginationMeta{
+				Page:       expenses.Page,
+				Limit:      expenses.Limit,
+				TotalItems: expenses.TotalItems,
+				TotalPages: expenses.TotalPages,
+			},
+		},
+	)
 }
 
 func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {

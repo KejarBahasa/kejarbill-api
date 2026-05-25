@@ -175,7 +175,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 	return expenseID, err
 }
 
-func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]entity.ExpenseTimeline, error) {
+func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string, page int, limit int) (*entity.PaginatedExpenseTimeline, error) {
 	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
 	if err != nil {
 		return nil, err
@@ -192,12 +192,27 @@ func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID strin
 		return nil, expenseConstants.ErrForbiddenGroupAccess
 	}
 
-	expenses, err := s.expenseRepo.FindByGroupID(ctx, s.db, groupID)
+	page, limit = utils.NormalizePagination(page, limit)
+	offset := utils.CalculateOffset(page, limit)
+	totalItems, err := s.expenseRepo.CountByGroupID(ctx, s.db, groupID)
 	if err != nil {
 		return nil, err
 	}
 
-	return expenses, nil
+	expenses, err := s.expenseRepo.FindByGroupID(ctx, s.db, groupID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := utils.CalculateTotalPages(totalItems, limit)
+
+	return &entity.PaginatedExpenseTimeline{
+		Expenses:   expenses,
+		Page:       page,
+		Limit:      limit,
+		TotalItems: totalItems,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID string, expenseID string) (*entity.ExpenseDetail, error) {
