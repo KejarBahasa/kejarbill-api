@@ -199,3 +199,27 @@ func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID strin
 
 	return expenses, nil
 }
+
+func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID string, expenseID string) (*entity.ExpenseDetail, error) {
+	expense, err := s.expenseRepo.FindDetailByID(ctx, s.db, expenseID)
+	if err != nil {
+		return nil, err
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, expense.GroupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	participants, err := s.expenseRepo.FindExpenseParticipants(ctx, s.db, expenseID)
+	if err != nil {
+		return nil, err
+	}
+
+	expense.Participants = participants
+
+	return expense, nil
+}

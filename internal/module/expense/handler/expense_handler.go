@@ -108,3 +108,45 @@ func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
 		"expenses": result,
 	})
 }
+
+func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
+	var params dto.GetExpenseDetailParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	expense, err := h.expenseService.GetDetailByID(c.Context(), requesterUserID, params.ExpenseID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	participants := make([]dto.ExpenseDetailParticipantResponse, 0, len(expense.Participants))
+
+	for _, participant := range expense.Participants {
+		participants = append(participants, dto.ExpenseDetailParticipantResponse{
+			ParticipantID: participant.ParticipantID,
+			DisplayName:   participant.DisplayName,
+			ShareAmount:   participant.ShareAmount,
+		})
+	}
+
+	result := dto.ExpenseDetailResponse{
+		ID:          expense.ID,
+		Title:       expense.Title,
+		Description: expense.Description,
+		Currency:    expense.Currency,
+		TotalAmount: expense.TotalAmount,
+		ExpenseDate: expense.ExpenseDate.Format(
+			time.RFC3339,
+		),
+		Payer: dto.ExpenseDetailPayerResponse{
+			ParticipantID: expense.PayerParticipantID,
+			DisplayName:   expense.PayerDisplayName,
+		},
+		Participants: participants,
+	}
+
+	return response.Success(c, "expense detail fetched", result)
+}
