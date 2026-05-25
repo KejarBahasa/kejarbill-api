@@ -34,7 +34,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-to-server:
-    runs-on: [self-hosted, Linux]
+    runs-on: self-hosted
     needs: build-and-push
     steps:
       - name: Checkout code
