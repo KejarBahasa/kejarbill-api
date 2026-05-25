@@ -8,7 +8,7 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
 
-	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/dto"
+	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/request"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
