@@ -181,5 +181,5 @@ func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	return response.Success(c, "expense deleted", nil)
+	return response.Success[any](c, "expense deleted", nil)
 }

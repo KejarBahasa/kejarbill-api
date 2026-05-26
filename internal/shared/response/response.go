@@ -28,13 +28,13 @@ type Response[T any] struct {
 
 // Success send response 200 OK by default.
 // data send as is, if nil will show "data": null.
-func Success(c fiber.Ctx, message string, data any, statusCode ...int) error {
+func Success[T any](c fiber.Ctx, message string, data T, statusCode ...int) error {
 	code := fiber.StatusOK
 	if len(statusCode) > 0 {
 		code = statusCode[0]
 	}
 
-	return c.Status(code).JSON(Response[any]{
+	return c.Status(code).JSON(Response[T]{
 		Status:  StatusSuccess,
 		Message: message,
 		Data:    data,
@@ -42,13 +42,13 @@ func Success(c fiber.Ctx, message string, data any, statusCode ...int) error {
 }
 
 // SuccessWithMeta for response that need pagination
-func SuccessWithMeta(c fiber.Ctx, message string, data any, meta *Meta, statusCode ...int) error {
+func SuccessWithMeta[T any](c fiber.Ctx, message string, data T, meta *Meta, statusCode ...int) error {
 	code := fiber.StatusOK
 	if len(statusCode) > 0 {
 		code = statusCode[0]
 	}
 
-	return c.Status(code).JSON(Response[any]{
+	return c.Status(code).JSON(Response[T]{
 		Status:  StatusSuccess,
 		Message: message,
 		Data:    data,

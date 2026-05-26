@@ -42,7 +42,7 @@ func (h *GroupParticipantHandler) CreateGuestParticipants(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	return response.Success(c, "guest participants created", nil)
+	return response.Success[any](c, "guest participants created", nil)
 }
 
 func (h *GroupParticipantHandler) GetByGroupID(c fiber.Ctx) error {

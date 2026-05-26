@@ -43,7 +43,7 @@ func (h *GroupMemberHandler) AddMember(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	return response.Success(c, "member added", nil)
+	return response.Success[any](c, "member added", nil)
 }
 
 func (h *GroupMemberHandler) AddMemberBulk(c fiber.Ctx) error {
@@ -65,5 +65,5 @@ func (h *GroupMemberHandler) AddMemberBulk(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	return response.Success(c, "members added", nil)
+	return response.Success[any](c, "members added", nil)
 }

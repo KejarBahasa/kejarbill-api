@@ -16,7 +16,7 @@ func RegisterRoute(
 	dep *Dependency,
 ) {
 	app.Get("/", func(c fiber.Ctx) error {
-		return response.Success(c, "KejarBill API is running", nil)
+		return response.Success[any](c, "KejarBill API is running", nil)
 	})
 
 	v1 := app.Group("/v1")
