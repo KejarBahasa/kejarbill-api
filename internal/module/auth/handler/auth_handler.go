@@ -36,7 +36,7 @@ func (h *AuthHandler) Register(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	return response.Success(c, "register success", nil)
+	return response.Success[any](c, "register success", nil)
 }
 
 func (h *AuthHandler) Login(c fiber.Ctx) error {
@@ -104,5 +104,5 @@ func (h *AuthHandler) Logout(c fiber.Ctx) error {
 
 	security.ClearRefreshCookie(c)
 
-	return response.Success(c, "logout success", nil)
+	return response.Success[any](c, "logout success", nil)
 }

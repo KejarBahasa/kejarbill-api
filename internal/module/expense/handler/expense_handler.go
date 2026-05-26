@@ -8,8 +8,9 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/service"
 
-	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/dto"
+	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 
+	sharedDto "github.com/KejarBahasa/kejarbill-api/internal/shared/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/request"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
@@ -79,15 +80,20 @@ func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
 		return request.HandleValidationError(c, err)
 	}
 
+	var query sharedDto.PaginationQuery
+	if err := request.ValidateQuery(c, &query); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
 	requesterUserID := security.GetUserID(c)
 
-	expenses, err := h.expenseService.GetByGroupID(c.Context(), requesterUserID, params.GroupID)
+	expenses, err := h.expenseService.GetByGroupID(c.Context(), requesterUserID, params.GroupID, query.Page, query.Limit)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	result := make([]dto.ExpenseTimelineResponse, 0, len(expenses))
-	for _, expense := range expenses {
+	result := make([]dto.ExpenseTimelineResponse, 0, len(expenses.Expenses))
+	for _, expense := range expenses.Expenses {
 		result = append(result, dto.ExpenseTimelineResponse{
 			ID:          expense.ID,
 			Title:       expense.Title,
@@ -104,7 +110,76 @@ func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
 		})
 	}
 
-	return response.Success(c, "expenses fetched", fiber.Map{
-		"expenses": result,
-	})
+	return response.SuccessWithMeta(c, "expenses fetched",
+		fiber.Map{
+			"expenses": result,
+		},
+		&response.Meta{
+			Pagination: &response.PaginationMeta{
+				Page:       expenses.Page,
+				Limit:      expenses.Limit,
+				TotalItems: expenses.TotalItems,
+				TotalPages: expenses.TotalPages,
+			},
+		},
+	)
+}
+
+func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
+	var params dto.GetExpenseDetailParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	expense, err := h.expenseService.GetDetailByID(c.Context(), requesterUserID, params.ExpenseID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	participants := make([]dto.ExpenseDetailParticipantResponse, 0, len(expense.Participants))
+
+	for _, participant := range expense.Participants {
+		participants = append(participants, dto.ExpenseDetailParticipantResponse{
+			ParticipantID: participant.ParticipantID,
+			DisplayName:   participant.DisplayName,
+			ShareAmount:   participant.ShareAmount,
+		})
+	}
+
+	result := dto.ExpenseDetailResponse{
+		ID:          expense.ID,
+		Title:       expense.Title,
+		Description: expense.Description,
+		Currency:    expense.Currency,
+		TotalAmount: expense.TotalAmount,
+		ExpenseDate: expense.ExpenseDate.Format(
+			time.RFC3339,
+		),
+		Payer: dto.ExpenseDetailPayerResponse{
+			ParticipantID: expense.PayerParticipantID,
+			DisplayName:   expense.PayerDisplayName,
+		},
+		Participants: participants,
+	}
+
+	return response.Success(c, "expense detail fetched", result)
+}
+
+func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
+	var params dto.DeleteExpenseParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	err := h.expenseService.DeleteByID(c.Context(), requesterUserID, params.ExpenseID)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success[any](c, "expense deleted", nil)
 }

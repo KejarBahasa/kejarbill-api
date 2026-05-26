@@ -175,7 +175,7 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 	return expenseID, err
 }
 
-func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]entity.ExpenseTimeline, error) {
+func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string, page int, limit int) (*entity.PaginatedExpenseTimeline, error) {
 	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
 	if err != nil {
 		return nil, err
@@ -192,10 +192,83 @@ func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID strin
 		return nil, expenseConstants.ErrForbiddenGroupAccess
 	}
 
-	expenses, err := s.expenseRepo.FindByGroupID(ctx, s.db, groupID)
+	page, limit = utils.NormalizePagination(page, limit)
+	offset := utils.CalculateOffset(page, limit)
+	totalItems, err := s.expenseRepo.CountByGroupID(ctx, s.db, groupID)
 	if err != nil {
 		return nil, err
 	}
 
-	return expenses, nil
+	expenses, err := s.expenseRepo.FindByGroupID(ctx, s.db, groupID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := utils.CalculateTotalPages(totalItems, limit)
+
+	return &entity.PaginatedExpenseTimeline{
+		Expenses:   expenses,
+		Page:       page,
+		Limit:      limit,
+		TotalItems: totalItems,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID string, expenseID string) (*entity.ExpenseDetail, error) {
+	expense, err := s.expenseRepo.FindDetailByID(ctx, s.db, expenseID)
+	if err != nil {
+		return nil, err
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, expense.GroupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	participants, err := s.expenseRepo.FindExpenseParticipants(ctx, s.db, expenseID)
+	if err != nil {
+		return nil, err
+	}
+
+	expense.Participants = participants
+
+	return expense, nil
+}
+
+func (s *ExpenseService) DeleteByID(ctx context.Context, requesterUserID string, expenseID string) error {
+	expense, err := s.expenseRepo.FindDetailByID(ctx, s.db, expenseID)
+	if err != nil {
+		return expenseConstants.ErrExpenseNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, expense.GroupID, requesterUserID)
+	if err != nil {
+		return err
+	}
+	if !hasAccess {
+		return expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		err := s.expenseRepo.DeleteExpenseParticipants(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+
+		err = s.ledgerRepo.DeleteBySourceID(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+
+		err = s.expenseRepo.SoftDeleteExpense(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }

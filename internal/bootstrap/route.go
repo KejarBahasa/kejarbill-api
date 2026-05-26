@@ -16,7 +16,7 @@ func RegisterRoute(
 	dep *Dependency,
 ) {
 	app.Get("/", func(c fiber.Ctx) error {
-		return response.Success(c, "KejarBill API is running", nil)
+		return response.Success[any](c, "KejarBill API is running", nil)
 	})
 
 	v1 := app.Group("/v1")
@@ -28,7 +28,16 @@ func RegisterRoute(
 	userRoutePkg.UserRoute(v1, dep.AuthMiddleware, dep.UserHandler)
 
 	// GROUP
-	groupRoutePkg.GroupRoute(v1, dep.AuthMiddleware, dep.GroupHandler, dep.GroupMemberHandler, dep.GroupParticipantHandler, dep.BalanceHandler, dep.ExpenseHandler)
+	groupRoutePkg.GroupRoute(
+		v1,
+		dep.AuthMiddleware,
+		dep.GroupHandler,
+		dep.GroupMemberHandler,
+		dep.GroupParticipantHandler,
+		dep.SettlementHandler,
+		dep.BalanceHandler,
+		dep.ExpenseHandler,
+	)
 
 	// EXPENSE
 	expenseRoutePkg.ExpenseRoute(v1, dep.AuthMiddleware, dep.ExpenseHandler)

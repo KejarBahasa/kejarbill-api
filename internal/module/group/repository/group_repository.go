@@ -47,3 +47,50 @@ func (r *GroupRepository) Create(ctx context.Context, db database.PgxExt, group 
 
 	return groupID, err
 }
+
+func (r *GroupRepository) FindDetailByID(ctx context.Context, db database.PgxExt, groupID string) (*entity.GroupDetail, error) {
+	query := `
+		SELECT
+			g.id,
+			g.name,
+			g.description,
+			(
+				SELECT COUNT(*)
+				FROM group_members gm
+				WHERE
+					gm.group_id = g.id
+					AND gm.status = 'active'
+			),
+			(
+				SELECT COUNT(*)
+				FROM group_participants gp
+				WHERE gp.group_id = g.id
+			),
+			(
+				SELECT COUNT(*)
+				FROM expenses e
+				WHERE
+					e.group_id = g.id
+					AND e.deleted_at IS NULL
+			),
+			g.created_at
+		FROM groups g
+		WHERE g.id = $1
+	`
+
+	var group entity.GroupDetail
+	err := db.QueryRow(ctx, query, groupID).Scan(
+		&group.ID,
+		&group.Name,
+		&group.Description,
+		&group.TotalMembers,
+		&group.TotalParticipants,
+		&group.TotalExpenses,
+		&group.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &group, nil
+}

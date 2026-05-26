@@ -15,6 +15,7 @@ import (
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
+	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/entity"
 
 	settlementConstants "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	settlementEntity "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/entity"
@@ -149,4 +150,44 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 	})
 
 	return settlementID, err
+}
+
+func (s *SettlementService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string, limit, page int) (*entity.PaginatedSettlementTimeline, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	page, limit = utils.NormalizePagination(page, limit)
+	offset := utils.CalculateOffset(page, limit)
+	totalItems, err := s.settlementRepo.CountByGroupID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	settlements, err := s.settlementRepo.FindByGroupID(ctx, s.db, groupID, offset, page)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := utils.CalculateTotalPages(totalItems, limit)
+
+	return &entity.PaginatedSettlementTimeline{
+		Settlements: settlements,
+		Page:        page,
+		Limit:       limit,
+		TotalItems:  totalItems,
+		TotalPages:  totalPages,
+	}, nil
 }

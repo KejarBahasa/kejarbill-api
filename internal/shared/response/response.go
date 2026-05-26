@@ -2,6 +2,11 @@ package response
 
 import "github.com/gofiber/fiber/v3"
 
+const (
+	StatusSuccess = "success"
+	StatusError   = "error"
+)
+
 type PaginationMeta struct {
 	Page       int   `json:"page"`
 	Limit      int   `json:"limit"`
@@ -23,28 +28,28 @@ type Response[T any] struct {
 
 // Success send response 200 OK by default.
 // data send as is, if nil will show "data": null.
-func Success(c fiber.Ctx, message string, data any, statusCode ...int) error {
+func Success[T any](c fiber.Ctx, message string, data T, statusCode ...int) error {
 	code := fiber.StatusOK
 	if len(statusCode) > 0 {
 		code = statusCode[0]
 	}
 
-	return c.Status(code).JSON(Response[any]{
-		Status:  "success",
+	return c.Status(code).JSON(Response[T]{
+		Status:  StatusSuccess,
 		Message: message,
 		Data:    data,
 	})
 }
 
 // SuccessWithMeta for response that need pagination
-func SuccessWithMeta(c fiber.Ctx, message string, data any, meta *Meta, statusCode ...int) error {
+func SuccessWithMeta[T any](c fiber.Ctx, message string, data T, meta *Meta, statusCode ...int) error {
 	code := fiber.StatusOK
 	if len(statusCode) > 0 {
 		code = statusCode[0]
 	}
 
-	return c.Status(code).JSON(Response[any]{
-		Status:  "success",
+	return c.Status(code).JSON(Response[T]{
+		Status:  StatusSuccess,
 		Message: message,
 		Data:    data,
 		Meta:    meta,
@@ -54,7 +59,7 @@ func SuccessWithMeta(c fiber.Ctx, message string, data any, meta *Meta, statusCo
 // Error for handle all type of error response
 func Error(c fiber.Ctx, statusCode int, message string, errors any) error {
 	return c.Status(statusCode).JSON(Response[any]{
-		Status:  "error",
+		Status:  StatusError,
 		Message: message,
 		Data:    nil,
 		Errors:  errors,

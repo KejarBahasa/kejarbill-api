@@ -153,3 +153,14 @@ func (r *LedgerRepository) GetOutstandingBalance(ctx context.Context, db databas
 
 	return outstanding, err
 }
+
+func (r *LedgerRepository) DeleteBySourceID(ctx context.Context, db database.PgxExt, sourceID string) error {
+	query := `
+		DELETE FROM account_ledger
+		WHERE source_id = $1 AND source_type = $2
+	`
+
+	_, err := db.Exec(ctx, query, sourceID, "expense")
+
+	return err
+}

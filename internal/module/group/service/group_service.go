@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+
 	groupEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group/entity"
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 
@@ -89,4 +91,29 @@ func (s *GroupService) Create(ctx context.Context, userID string, name string) (
 	})
 
 	return groupID, err
+}
+
+func (s *GroupService) GetDetailByID(ctx context.Context, requesterUserID string, groupID string) (*groupEntity.GroupDetail, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	group, err := s.groupRepo.FindDetailByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	return group, nil
 }
