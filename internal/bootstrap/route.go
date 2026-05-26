@@ -35,6 +35,7 @@ func RegisterRoute(
 		dep.GroupMemberHandler,
 		dep.GroupParticipantHandler,
 		dep.SettlementHandler,
+		dep.ActivityHandler,
 		dep.BalanceHandler,
 		dep.ExpenseHandler,
 	)
