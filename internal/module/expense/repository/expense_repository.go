@@ -91,8 +91,8 @@ func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, d
 func (r *ExpenseRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM expenses
-		WHERE group_id = $1 AND e.deleted_at IS NULL
+		FROM expenses e
+		WHERE e.group_id = $1 AND e.deleted_at IS NULL
 	`
 
 	var total int64
