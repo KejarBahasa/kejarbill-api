@@ -49,12 +49,24 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 	return settlementID, err
 }
 
-func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.SettlementTimeline, error) {
+func (r *SettlementRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM settlements
+		WHERE group_id = $1
+	`
+
+	var total int64
+	err := db.QueryRow(ctx, query, groupID).Scan(&total)
+
+	return total, err
+}
+
+func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string, limit, offset int) ([]entity.SettlementTimeline, error) {
 	query := `
 		SELECT
 			s.id,
 			s.amount,
-			s.currency,
 			s.created_at,
 
 			fp.id,
@@ -69,9 +81,10 @@ func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.Pg
 			ON tp.id = s.to_participant_id
 		WHERE s.group_id = $1
 		ORDER BY s.created_at DESC
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := db.Query(ctx, query, groupID)
+	rows, err := db.Query(ctx, query, groupID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +98,9 @@ func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.Pg
 		err := rows.Scan(
 			&settlement.ID,
 			&settlement.Amount,
-			&settlement.Currency,
 			&settlement.SettlementDate,
-
 			&settlement.FromParticipantID,
 			&settlement.FromDisplayName,
-
 			&settlement.ToParticipantID,
 			&settlement.ToDisplayName,
 		)

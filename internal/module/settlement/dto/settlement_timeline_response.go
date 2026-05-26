@@ -5,7 +5,6 @@ type SettlementTimelineResponse struct {
 	ToParticipant   SettlementParticipantResponse `json:"to_participant"`
 	ID              string                        `json:"id"`
 	Amount          int64                         `json:"amount"`
-	Currency        string                        `json:"currency"`
 	SettlementDate  string                        `json:"settlement_date"`
 }
 
