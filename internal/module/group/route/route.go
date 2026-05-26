@@ -25,6 +25,7 @@ func GroupRoute(
 	group := api.Group("/groups", authMiddleware.Protected)
 
 	group.Post("/", groupHandler.Create)
+	group.Get("/:group_id", groupHandler.GetDetailByID)
 
 	group.Post("/:group_id/members", groupMemberHandler.AddMember)
 	group.Post("/:group_id/members/bulk", groupMemberHandler.AddMemberBulk)
