@@ -164,9 +164,11 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 			shareAmount,
 		)
 
-		err = s.ledgerRepo.BulkCreate(ctx, tx, ledgers)
-		if err != nil {
-			return err
+		if len(ledgers) > 0 {
+			err = s.ledgerRepo.BulkCreate(ctx, tx, ledgers)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
