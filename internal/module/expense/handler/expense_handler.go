@@ -166,3 +166,20 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 
 	return response.Success(c, "expense detail fetched", result)
 }
+
+func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
+	var params dto.DeleteExpenseParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	err := h.expenseService.DeleteByID(c.Context(), requesterUserID, params.ExpenseID)
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success(c, "expense deleted", nil)
+}

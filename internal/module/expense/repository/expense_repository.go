@@ -92,7 +92,7 @@ func (r *ExpenseRepository) CountByGroupID(ctx context.Context, db database.PgxE
 	query := `
 		SELECT COUNT(*)
 		FROM expenses
-		WHERE group_id = $1
+		WHERE group_id = $1 AND e.deleted_at IS NULL
 	`
 
 	var total int64
@@ -115,7 +115,7 @@ func (r *ExpenseRepository) FindByGroupID(ctx context.Context, db database.PgxEx
 		FROM expenses e
 		INNER JOIN group_participants p
 			ON p.id = e.paid_by_participant_id
-		WHERE e.group_id = $1
+		WHERE e.group_id = $1 AND e.deleted_at IS NULL
 		ORDER BY e.expense_date DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -167,7 +167,7 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 		FROM expenses e
 		INNER JOIN group_participants p
 			ON p.id = e.paid_by_participant_id
-		WHERE e.id = $1
+		WHERE e.id = $1 AND e.deleted_at IS NULL
 	`
 
 	var expense entity.ExpenseDetail
@@ -228,4 +228,27 @@ func (r *ExpenseRepository) FindExpenseParticipants(ctx context.Context, db data
 	}
 
 	return participants, nil
+}
+
+func (r *ExpenseRepository) DeleteExpenseParticipants(ctx context.Context, db database.PgxExt, expenseID string) error {
+	query := `
+		DELETE FROM expense_participants
+		WHERE expense_id = $1
+	`
+
+	_, err := db.Exec(ctx, query, expenseID)
+
+	return err
+}
+
+func (r *ExpenseRepository) SoftDeleteExpense(ctx context.Context, db database.PgxExt, expenseID string) error {
+	query := `
+		UPDATE expenses
+		SET deleted_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := db.Exec(ctx, query, expenseID)
+
+	return err
 }

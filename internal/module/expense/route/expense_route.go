@@ -16,4 +16,5 @@ func ExpenseRoute(
 
 	expense.Post("/equal", expenseHandler.CreateExpenseEqual)
 	expense.Get("/:expense_id", expenseHandler.GetDetailByID)
+	expense.Delete("/:expense_id", expenseHandler.DeleteByID)
 }

@@ -20,4 +20,6 @@ var (
 	ErrForbiddenGroupAccess = errors.New("forbidden group access")
 
 	ErrInvalidExpenseDate = errors.New("invalid expense date")
+
+	ErrExpenseNotFound = errors.New("expense not found")
 )

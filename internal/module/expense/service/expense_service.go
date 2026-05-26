@@ -238,3 +238,37 @@ func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID stri
 
 	return expense, nil
 }
+
+func (s *ExpenseService) DeleteByID(ctx context.Context, requesterUserID string, expenseID string) error {
+	expense, err := s.expenseRepo.FindDetailByID(ctx, s.db, expenseID)
+	if err != nil {
+		return expenseConstants.ErrExpenseNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, expense.GroupID, requesterUserID)
+	if err != nil {
+		return err
+	}
+	if !hasAccess {
+		return expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		err := s.expenseRepo.DeleteExpenseParticipants(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+
+		err = s.ledgerRepo.DeleteBySourceID(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+
+		err = s.expenseRepo.SoftDeleteExpense(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
