@@ -63,11 +63,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/kejarbahasa-dev/kejar-bill-api
-
-            cat << 'EOF' > .env
-            ${{ vars.DEV_ENV }}
-            EOF
-
+            echo "$DEV_ENV" > .env
             docker compose pull kejarbill-api
             docker compose up -d --remove-orphans
             docker image prune -f
