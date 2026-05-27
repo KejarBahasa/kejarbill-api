@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"time"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/dto"
@@ -14,6 +13,8 @@ import (
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+	ledgerConstants "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/constants"
+	ledgerEntity "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/entity"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
@@ -59,68 +60,126 @@ func NewExpenseService(
 	}
 }
 
-func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, req *dto.CreateExpenseEqualRequest) (string, error) {
+func (s *ExpenseService) CreateEqualExpense(ctx context.Context, userID string, req *dto.CreateExpenseEqualRequest) (string, error) {
 	if len(req.ParticipantIDs) == 0 {
 		return "", expenseConstants.ErrParticipantsRequired
 	}
 
-	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, req.GroupID)
+	validationResult, err := s.validateExpenseCreation(ctx, userID, req.GroupID, req.PayerParticipantID, req.ParticipantIDs, req.ExpenseDate)
 	if err != nil {
 		return "", err
-	}
-	if !groupExists {
-		return "", expenseConstants.ErrGroupNotFound
-	}
-
-	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, req.GroupID, userID)
-	if err != nil {
-		return "", err
-	}
-	if !hasAccess {
-		return "", expenseConstants.ErrForbiddenGroupAccess
-	}
-
-	payerExists := false
-	for _, participantID := range req.ParticipantIDs {
-		if participantID == req.PayerParticipantID {
-			payerExists = true
-			break
-		}
-	}
-	if !payerExists {
-		return "", expenseConstants.ErrPayerNotIncludedInParticipants
-	}
-
-	payerExistsInGroup, err := s.groupParticipantRepo.ExistsByIDAndGroupID(ctx, s.db, req.GroupID, req.PayerParticipantID)
-	if err != nil {
-		return "", err
-	}
-	if !payerExistsInGroup {
-		return "", expenseConstants.ErrPayerParticipantNotInGroup
-	}
-
-	if utils.HasDuplicateString(req.ParticipantIDs) {
-		return "", expenseConstants.ErrDuplicateParticipants
-	}
-
-	participantCount, err := s.groupParticipantRepo.CountByIDsAndGroupID(ctx, s.db, req.GroupID, req.ParticipantIDs)
-	if err != nil {
-		return "", err
-	}
-	if participantCount != len(req.ParticipantIDs) {
-		return "", expenseConstants.ErrParticipantNotInGroup
-	}
-
-	expenseDate, err := time.Parse(time.RFC3339, req.ExpenseDate)
-	if err != nil {
-		return "", expenseConstants.ErrInvalidExpenseDate
-	}
-
-	if expenseDate.IsZero() {
-		expenseDate = time.Now()
 	}
 
 	shareAmount := req.TotalAmount / int64(len(req.ParticipantIDs))
+
+	participants := make([]entity.CreateExpenseParticipantPayload, 0, len(req.ParticipantIDs))
+
+	for _, participantID := range req.ParticipantIDs {
+		participants = append(participants, entity.CreateExpenseParticipantPayload{
+			ParticipantID: participantID,
+			ShareAmount:   shareAmount,
+		})
+	}
+
+	payload := &entity.CreateExpensePayload{
+		GroupID:            req.GroupID,
+		Title:              req.Title,
+		Description:        utils.PtrOrNil(req.Description),
+		Currency:           req.Currency,
+		ExpenseDate:        validationResult.ExpenseDate,
+		PayerParticipantID: req.PayerParticipantID,
+		TotalAmount:        req.TotalAmount,
+		CreatedBy:          userID,
+		SplitMethod:        expenseConstants.SplitMethodEqual,
+		Participants:       participants,
+	}
+
+	return s.createExpense(ctx, payload)
+}
+
+func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string, req *dto.CreateExpenseCustomRequest) (string, error) {
+	if len(req.Participants) == 0 {
+		return "", expenseConstants.ErrParticipantsRequired
+	}
+
+	participantIDs := make([]string, 0, len(req.Participants))
+	participants := make([]entity.CreateExpenseParticipantPayload, 0, len(req.Participants))
+	var totalAmount int64
+
+	for _, participant := range req.Participants {
+		participantIDs = append(participantIDs, participant.ParticipantID)
+
+		participants = append(participants, entity.CreateExpenseParticipantPayload{
+			ParticipantID: participant.ParticipantID,
+			ShareAmount:   participant.ShareAmount,
+		})
+
+		totalAmount += participant.ShareAmount
+	}
+
+	validationResult, err := s.validateExpenseCreation(
+		ctx,
+		userID,
+		req.GroupID,
+		req.PayerParticipantID,
+		participantIDs,
+		req.ExpenseDate,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	payload := &entity.CreateExpensePayload{
+		GroupID:            req.GroupID,
+		Title:              req.Title,
+		Description:        utils.PtrOrNil(req.Description),
+		Currency:           req.Currency,
+		ExpenseDate:        validationResult.ExpenseDate,
+		PayerParticipantID: req.PayerParticipantID,
+		TotalAmount:        totalAmount,
+		CreatedBy:          userID,
+		SplitMethod:        expenseConstants.SplitMethodCustom,
+		Participants:       participants,
+	}
+
+	return s.createExpense(ctx, payload)
+}
+
+func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID string, req *dto.CreateExpenseItemizedRequest) (string, error) {
+	participantShareMap := make(map[string]int64)
+	items := make([]entity.ExpenseItem, 0, len(req.Items))
+	participantIDs := make([]string, 0, len(req.Items))
+	var totalAmount int64
+
+	for _, item := range req.Items {
+		subtotal := item.Qty * item.UnitPrice
+
+		participantShareMap[item.ParticipantID] += subtotal
+
+		participantIDs = append(participantIDs, item.ParticipantID)
+
+		items = append(items, entity.ExpenseItem{
+			Name:      item.Name,
+			Qty:       item.Qty,
+			UnitPrice: item.UnitPrice,
+			Subtotal:  subtotal,
+			Notes:     utils.PtrOrNil(item.Notes),
+		})
+
+		totalAmount += subtotal
+	}
+
+	validationResult, err := s.validateExpenseCreation(
+		ctx,
+		userID,
+		req.GroupID,
+		req.PayerParticipantID,
+		participantIDs,
+		req.ExpenseDate,
+	)
+	if err != nil {
+		return "", err
+	}
 
 	var expenseID string
 	err = database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
@@ -128,45 +187,63 @@ func (s *ExpenseService) CreateExpenseEqual(ctx context.Context, userID string, 
 			GroupID:             req.GroupID,
 			Title:               req.Title,
 			Description:         utils.PtrOrNil(req.Description),
-			PaidByParticipantID: req.PayerParticipantID,
 			Currency:            req.Currency,
-			SubtotalAmount:      req.TotalAmount,
-			TotalAmount:         req.TotalAmount,
-			SplitMethod:         expenseConstants.SplitMethodEqual,
-			ExpenseDate:         expenseDate,
+			SubtotalAmount:      totalAmount,
+			TotalAmount:         totalAmount,
+			ExpenseDate:         validationResult.ExpenseDate,
+			PaidByParticipantID: req.PayerParticipantID,
+			SplitMethod:         expenseConstants.SplitMethodItemized,
 			CreatedBy:           userID,
 		})
 		if err != nil {
 			return err
 		}
+
 		expenseID = createdExpenseID
 
-		participants := make([]entity.ExpenseParticipant, 0, len(req.ParticipantIDs))
-		for _, participantID := range req.ParticipantIDs {
-			participants = append(participants, entity.ExpenseParticipant{
+		for i := range items {
+			items[i].ExpenseID = expenseID
+		}
+
+		err = s.expenseRepo.BulkCreateExpenseItems(ctx, tx, items)
+		if err != nil {
+			return err
+		}
+
+		expenseParticipants := make([]entity.ExpenseParticipant, 0, len(participantShareMap))
+		ledgers := make([]ledgerEntity.AccountLedger, 0, len(participantShareMap))
+
+		for participantID, shareAmount := range participantShareMap {
+			expenseParticipants = append(expenseParticipants, entity.ExpenseParticipant{
 				ExpenseID:     expenseID,
 				ParticipantID: participantID,
 				ShareAmount:   shareAmount,
 			})
+
+			if participantID == req.PayerParticipantID {
+				continue
+			}
+
+			ledgers = append(ledgers, ledgerEntity.AccountLedger{
+				GroupID:           req.GroupID,
+				FromParticipantID: participantID,
+				ToParticipantID:   req.PayerParticipantID,
+				Amount:            shareAmount,
+				SourceType:        ledgerConstants.SourceTypeExpense,
+				SourceID:          expenseID,
+			})
 		}
 
-		err = s.expenseRepo.BulkCreateExpenseParticipants(ctx, tx, participants)
+		err = s.expenseRepo.BulkCreateExpenseParticipants(ctx, tx, expenseParticipants)
 		if err != nil {
 			return err
 		}
 
-		// Ledgers
-		ledgers := s.ledgerService.BuildExpenseEntries(
-			req.GroupID,
-			req.PayerParticipantID,
-			expenseID,
-			req.ParticipantIDs,
-			shareAmount,
-		)
-
-		err = s.ledgerRepo.BulkCreate(ctx, tx, ledgers)
-		if err != nil {
-			return err
+		if len(ledgers) > 0 {
+			err = s.ledgerRepo.BulkCreate(ctx, tx, ledgers)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil

@@ -22,4 +22,6 @@ var (
 	ErrInvalidExpenseDate = errors.New("invalid expense date")
 
 	ErrExpenseNotFound = errors.New("expense not found")
+
+	ErrInvalidTotalAmount = errors.New("invalid total amount")
 )

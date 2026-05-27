@@ -14,7 +14,10 @@ func ExpenseRoute(
 ) {
 	expense := api.Group("/expenses", authMiddleware.Protected)
 
-	expense.Post("/equal", expenseHandler.CreateExpenseEqual)
+	expense.Post("/equal", expenseHandler.CreateEqualExpense)
+	expense.Post("/custom", expenseHandler.CreateCustomExpense)
+	expense.Post("/itemized", expenseHandler.CreateItemizedExpense)
+
 	expense.Get("/:expense_id", expenseHandler.GetDetailByID)
 	expense.Delete("/:expense_id", expenseHandler.DeleteByID)
 }

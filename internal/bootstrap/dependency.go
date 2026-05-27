@@ -1,6 +1,9 @@
 package bootstrap
 
 import (
+	activityHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/activity/handler"
+	activityServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/activity/service"
+
 	authHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/handler"
 	authRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	authServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/auth/service"
@@ -66,6 +69,8 @@ type Dependency struct {
 
 	ExpenseHandler *expenseHandlerPkg.ExpenseHandler
 
+	ActivityHandler *activityHandlerPkg.ActivityHandler
+
 	BalanceHandler *balanceHandlerPkg.BalanceHandler
 
 	SettlementHandler *settlementHandlerPkg.SettlementHandler
@@ -103,6 +108,7 @@ func BuildDependency() (*Dependency, error) {
 	groupMemberService := groupMemberServicePkg.NewGroupMemberService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
 	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupMemberRepo, groupParticipantRepo)
+	activityService := activityServicePkg.NewActivityService(db, expenseRepo, settlementRepo, groupRepo, groupMemberRepo)
 	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupMemberRepo)
 	settlementService := settlementServicePkg.NewSettlementService(db, settlementRepo, ledgerRepo, groupRepo, groupMemberRepo)
 
@@ -112,6 +118,7 @@ func BuildDependency() (*Dependency, error) {
 	groupMemberHandler := groupMemberHandlerPkg.NewGroupMemberHandler(groupMemberService)
 	groupParticipantHandler := groupParticipantHandlerPkg.NewGroupParticipantHandler(groupParticipantService)
 	expenseHandler := expenseHandlerPkg.NewExpenseHandler(expenseService)
+	activityHandler := activityHandlerPkg.NewActivityHandler(activityService)
 	balanceHandler := balanceHandlerPkg.NewBalanceHandler(balanceService)
 	settlementHandler := settlementHandlerPkg.NewSettlementHandler(settlementService)
 
@@ -134,6 +141,8 @@ func BuildDependency() (*Dependency, error) {
 		GroupParticipantHandler: groupParticipantHandler,
 
 		ExpenseHandler: expenseHandler,
+
+		ActivityHandler: activityHandler,
 
 		BalanceHandler: balanceHandler,
 

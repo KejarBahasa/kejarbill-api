@@ -31,7 +31,7 @@ func NewExpenseHandler(
 	}
 }
 
-func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
+func (h *ExpenseHandler) CreateEqualExpense(c fiber.Ctx) error {
 	var req dto.CreateExpenseEqualRequest
 	if validationErr := request.ValidateBody(c, &req); validationErr != nil {
 		return request.HandleValidationError(c, validationErr)
@@ -39,7 +39,7 @@ func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 
 	userID := security.GetUserID(c)
 
-	expenseID, err := h.expenseService.CreateExpenseEqual(c.Context(), userID, &req)
+	expenseID, err := h.expenseService.CreateEqualExpense(c.Context(), userID, &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, expenseConstants.ErrParticipantsRequired):
@@ -72,6 +72,79 @@ func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "expense created", fiber.Map{"id": expenseID})
+}
+
+func (h *ExpenseHandler) CreateCustomExpense(c fiber.Ctx) error {
+	var req dto.CreateExpenseCustomRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	expenseID, err := h.expenseService.CreateCustomExpense(c.Context(), userID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrParticipantsRequired):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrGroupNotFound):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrPayerNotIncludedInParticipants):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrPayerParticipantNotInGroup):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrDuplicateParticipants):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrParticipantNotInGroup):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrInvalidExpenseDate):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		}
+	}
+
+	return response.Success(
+		c,
+		"custom expense created",
+		fiber.Map{
+			"expense_id": expenseID,
+		},
+		fiber.StatusCreated,
+	)
+}
+
+func (h *ExpenseHandler) CreateItemizedExpense(c fiber.Ctx) error {
+	var req dto.CreateExpenseItemizedRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	expenseID, err := h.expenseService.CreateItemizedExpense(c.Context(), userID, &req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success(
+		c,
+		"itemized expense created",
+		fiber.Map{
+			"expense_id": expenseID,
+		},
+		fiber.StatusCreated,
+	)
 }
 
 func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
