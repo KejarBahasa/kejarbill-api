@@ -1,14 +1,14 @@
 package dto
 
 type ExpenseDetailResponse struct {
-	Participants []ExpenseDetailParticipantResponse `json:"participants"`
+	Description  *string                            `json:"description"`
 	ID           string                             `json:"id"`
 	Title        string                             `json:"title"`
-	Description  *string                            `json:"description"`
 	Currency     string                             `json:"currency"`
-	TotalAmount  int64                              `json:"total_amount"`
 	ExpenseDate  string                             `json:"expense_date"`
+	TotalAmount  int64                              `json:"total_amount"`
 	Payer        ExpenseDetailPayerResponse         `json:"payer"`
+	Participants []ExpenseDetailParticipantResponse `json:"participants"`
 }
 
 type ExpenseDetailPayerResponse struct {
