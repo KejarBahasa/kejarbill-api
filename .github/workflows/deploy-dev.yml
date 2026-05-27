@@ -34,7 +34,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-to-server:
-    runs-on: lalarian
+    runs-on: [self-hosted, lalarian]
     needs: build-and-push
     steps:
       - name: Checkout code
