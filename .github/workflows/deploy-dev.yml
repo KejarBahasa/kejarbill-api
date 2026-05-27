@@ -65,7 +65,7 @@ jobs:
             cd /home/kejarbahasa-dev/kejar-bill-api
 
             cat << 'EOF' > .env
-            ${{ secrets.DEV_ENV }}
+            ${{ vars.DEV_ENV }}
             EOF
 
             docker compose pull kejarbill-api
