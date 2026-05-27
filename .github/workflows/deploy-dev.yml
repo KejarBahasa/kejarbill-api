@@ -3,7 +3,7 @@ name: Deploy to Dev
 on:
   push:
     branches:
-      - dev
+      - coba-deploy
 
 jobs:
   build-and-push:
@@ -34,7 +34,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-to-server:
-    runs-on: self-hosted
+    runs-on: lalarian
     needs: build-and-push
     steps:
       - name: Checkout code
