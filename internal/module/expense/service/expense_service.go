@@ -13,6 +13,8 @@ import (
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
+	ledgerConstants "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/constants"
+	ledgerEntity "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/entity"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
@@ -141,6 +143,113 @@ func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string,
 	}
 
 	return s.createExpense(ctx, payload)
+}
+
+func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID string, req *dto.CreateExpenseItemizedRequest) (string, error) {
+	participantShareMap := make(map[string]int64)
+	items := make([]entity.ExpenseItem, 0, len(req.Items))
+	participantIDs := make([]string, 0, len(req.Items))
+	var totalAmount int64
+
+	for _, item := range req.Items {
+		subtotal := item.Qty * item.UnitPrice
+
+		participantShareMap[item.ParticipantID] += subtotal
+
+		participantIDs = append(participantIDs, item.ParticipantID)
+
+		items = append(items, entity.ExpenseItem{
+			Name:      item.Name,
+			Qty:       item.Qty,
+			UnitPrice: item.UnitPrice,
+			Subtotal:  subtotal,
+			Notes:     utils.PtrOrNil(item.Notes),
+		})
+
+		totalAmount += subtotal
+	}
+
+	validationResult, err := s.validateExpenseCreation(
+		ctx,
+		userID,
+		req.GroupID,
+		req.PayerParticipantID,
+		participantIDs,
+		req.ExpenseDate,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	var expenseID string
+	err = database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		createdExpenseID, err := s.expenseRepo.CreateExpense(ctx, tx, &entity.Expense{
+			GroupID:             req.GroupID,
+			Title:               req.Title,
+			Description:         utils.PtrOrNil(req.Description),
+			Currency:            req.Currency,
+			SubtotalAmount:      totalAmount,
+			TotalAmount:         totalAmount,
+			ExpenseDate:         validationResult.ExpenseDate,
+			PaidByParticipantID: req.PayerParticipantID,
+			SplitMethod:         expenseConstants.SplitMethodItemized,
+			CreatedBy:           userID,
+		})
+		if err != nil {
+			return err
+		}
+
+		expenseID = createdExpenseID
+
+		for i := range items {
+			items[i].ExpenseID = expenseID
+		}
+
+		err = s.expenseRepo.BulkCreateExpenseItems(ctx, tx, items)
+		if err != nil {
+			return err
+		}
+
+		expenseParticipants := make([]entity.ExpenseParticipant, 0, len(participantShareMap))
+		ledgers := make([]ledgerEntity.AccountLedger, 0, len(participantShareMap))
+
+		for participantID, shareAmount := range participantShareMap {
+			expenseParticipants = append(expenseParticipants, entity.ExpenseParticipant{
+				ExpenseID:     expenseID,
+				ParticipantID: participantID,
+				ShareAmount:   shareAmount,
+			})
+
+			if participantID == req.PayerParticipantID {
+				continue
+			}
+
+			ledgers = append(ledgers, ledgerEntity.AccountLedger{
+				GroupID:           req.GroupID,
+				FromParticipantID: participantID,
+				ToParticipantID:   req.PayerParticipantID,
+				Amount:            shareAmount,
+				SourceType:        ledgerConstants.SourceTypeExpense,
+				SourceID:          expenseID,
+			})
+		}
+
+		err = s.expenseRepo.BulkCreateExpenseParticipants(ctx, tx, expenseParticipants)
+		if err != nil {
+			return err
+		}
+
+		if len(ledgers) > 0 {
+			err = s.ledgerRepo.BulkCreate(ctx, tx, ledgers)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	return expenseID, err
 }
 
 func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string, page int, limit int) (*entity.PaginatedExpenseTimeline, error) {

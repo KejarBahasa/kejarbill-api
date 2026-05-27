@@ -5,6 +5,7 @@ import (
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type ExpenseRepository struct {
@@ -86,6 +87,52 @@ func (r *ExpenseRepository) BulkCreateExpenseParticipants(ctx context.Context, d
 	_, err := db.Exec(ctx, query, args...)
 
 	return err
+}
+
+func (r *ExpenseRepository) BulkCreateExpenseItems(ctx context.Context, db database.PgxExt, items []entity.ExpenseItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+
+	query := `
+		INSERT INTO expense_items (
+			expense_id,
+			name,
+			qty,
+			unit_price,
+			subtotal,
+			notes
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	batch := &pgx.Batch{}
+
+	for _, item := range items {
+		batch.Queue(
+			query,
+
+			item.ExpenseID,
+			item.Name,
+			item.Qty,
+			item.UnitPrice,
+			item.Subtotal,
+			item.Notes,
+		)
+	}
+
+	results := db.SendBatch(ctx, batch)
+
+	defer results.Close()
+
+	for range items {
+		_, err := results.Exec()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *ExpenseRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {

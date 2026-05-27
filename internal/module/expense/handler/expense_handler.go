@@ -124,6 +124,29 @@ func (h *ExpenseHandler) CreateCustomExpense(c fiber.Ctx) error {
 	)
 }
 
+func (h *ExpenseHandler) CreateItemizedExpense(c fiber.Ctx) error {
+	var req dto.CreateExpenseItemizedRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	expenseID, err := h.expenseService.CreateItemizedExpense(c.Context(), userID, &req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success(
+		c,
+		"itemized expense created",
+		fiber.Map{
+			"expense_id": expenseID,
+		},
+		fiber.StatusCreated,
+	)
+}
+
 func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
 	var params groupDto.GroupIDParams
 	if err := request.ValidatePathParams(c, &params); err != nil {
