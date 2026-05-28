@@ -10,17 +10,6 @@ services:
       - postgre_default
       - redis_default
 
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflare-tunnel
-    restart: always
-    env_file:
-      - .env
-    networks:
-      - postgre_default
-      - redis_default
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-
 networks:
   postgre_default:
     external: true
