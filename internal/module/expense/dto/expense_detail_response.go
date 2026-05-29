@@ -9,7 +9,7 @@ type ExpenseDetailResponse struct {
 	TotalAmount  int64                              `json:"total_amount"`
 	Payer        ExpenseDetailPayerResponse         `json:"payer"`
 	Participants []ExpenseDetailParticipantResponse `json:"participants"`
-	Items        []ExpenseItemResponse              `json:"items"`
+	Items        []ExpenseDetailItemResponse        `json:"items"`
 }
 
 type ExpenseDetailPayerResponse struct {
@@ -23,7 +23,7 @@ type ExpenseDetailParticipantResponse struct {
 	ShareAmount   int64  `json:"share_amount"`
 }
 
-type ExpenseItemResponse struct {
+type ExpenseDetailItemResponse struct {
 	Notes     *string `json:"notes"`
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
