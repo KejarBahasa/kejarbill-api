@@ -277,6 +277,51 @@ func (r *ExpenseRepository) FindExpenseParticipants(ctx context.Context, db data
 	return participants, nil
 }
 
+func (r *ExpenseRepository) FindExpenseItemsByExpenseID(ctx context.Context, db database.PgxExt, expenseID string) ([]entity.ExpenseItem, error) {
+	query := `
+		SELECT
+			id,
+			expense_id,
+			name,
+			qty,
+			unit_price,
+			subtotal,
+			notes
+		FROM expense_items
+		WHERE expense_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := db.Query(ctx, query, expenseID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	items := make([]entity.ExpenseItem, 0)
+
+	for rows.Next() {
+		var item entity.ExpenseItem
+		err := rows.Scan(
+			&item.ID,
+			&item.ExpenseID,
+			&item.Name,
+			&item.Qty,
+			&item.UnitPrice,
+			&item.Subtotal,
+			&item.Notes,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
 func (r *ExpenseRepository) DeleteExpenseParticipants(ctx context.Context, db database.PgxExt, expenseID string) error {
 	query := `
 		DELETE FROM expense_participants

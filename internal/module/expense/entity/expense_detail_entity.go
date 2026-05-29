@@ -4,6 +4,7 @@ import "time"
 
 type ExpenseDetail struct {
 	Participants       []ExpenseDetailParticipant
+	Items              []ExpenseItem
 	ID                 string
 	GroupID            string
 	Title              string

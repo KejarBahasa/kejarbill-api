@@ -212,12 +212,24 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 	}
 
 	participants := make([]dto.ExpenseDetailParticipantResponse, 0, len(expense.Participants))
+	items := make([]dto.ExpenseItemResponse, 0, len(expense.Items))
 
 	for _, participant := range expense.Participants {
 		participants = append(participants, dto.ExpenseDetailParticipantResponse{
 			ParticipantID: participant.ParticipantID,
 			DisplayName:   participant.DisplayName,
 			ShareAmount:   participant.ShareAmount,
+		})
+	}
+
+	for _, item := range expense.Items {
+		items = append(items, dto.ExpenseItemResponse{
+			ID:        item.ID,
+			Name:      item.Name,
+			Qty:       item.Qty,
+			UnitPrice: item.UnitPrice,
+			Subtotal:  item.Subtotal,
+			Notes:     item.Notes,
 		})
 	}
 
@@ -235,6 +247,7 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 			DisplayName:   expense.PayerDisplayName,
 		},
 		Participants: participants,
+		Items:        items,
 	}
 
 	return response.Success(c, "expense detail fetched", result)
