@@ -90,7 +90,7 @@ func (s *PaymentMethodService) FindMyPaymentMethods(ctx context.Context, userID 
 	result := make([]dto.PaymentMethodResponse, 0, len(paymentMethods))
 
 	for _, paymentMethod := range paymentMethods {
-		var accountNumber *string
+		var maskedAccountNumber *string
 
 		if len(paymentMethod.AccountNumber) > 0 {
 			decrypted, err := s.encryption.Decrypt(paymentMethod.AccountNumber)
@@ -98,19 +98,19 @@ func (s *PaymentMethodService) FindMyPaymentMethods(ctx context.Context, userID 
 				return nil, err
 			}
 
-			accountNumber = &decrypted
+			maskedAccountNumber = utils.Pointer(utils.MaskAccountNumber(decrypted))
 		}
 
 		result = append(result, dto.PaymentMethodResponse{
-			ID:            paymentMethod.ID,
-			MethodType:    paymentMethod.MethodType,
-			ProviderName:  paymentMethod.ProviderName,
-			AccountName:   paymentMethod.AccountName,
-			AccountNumber: accountNumber,
-			QRImageURL:    paymentMethod.QRImageURL,
-			Visibility:    paymentMethod.Visibility,
-			IsDefault:     paymentMethod.IsDefault,
-			IsVerified:    paymentMethod.IsVerified,
+			ID:                  paymentMethod.ID,
+			MethodType:          paymentMethod.MethodType,
+			ProviderName:        paymentMethod.ProviderName,
+			AccountName:         paymentMethod.AccountName,
+			MaskedAccountNumber: maskedAccountNumber,
+			QRImageURL:          paymentMethod.QRImageURL,
+			Visibility:          paymentMethod.Visibility,
+			IsDefault:           paymentMethod.IsDefault,
+			IsVerified:          paymentMethod.IsVerified,
 		})
 	}
 
