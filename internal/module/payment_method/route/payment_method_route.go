@@ -21,4 +21,6 @@ func PaymentMethodRoute(
 	paymentMethod.Get("/", handler.FindMine)
 
 	paymentMethod.Patch("/:payment_method_id/default", handler.SetDefault)
+	paymentMethod.Patch("/:payment_method_id/hide", handler.Hide)
+	paymentMethod.Patch("/:payment_method_id/unhide", handler.Unhide)
 }

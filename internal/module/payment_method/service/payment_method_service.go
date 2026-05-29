@@ -135,3 +135,31 @@ func (s *PaymentMethodService) SetDefault(ctx context.Context, userID string, pa
 		return s.paymentMethodRepo.SetDefault(ctx, tx, paymentMethodID)
 	})
 }
+
+func (s *PaymentMethodService) Hide(ctx context.Context, userID string, paymentMethodID string) error {
+	exists, err := s.paymentMethodRepo.ExistsByIDAndUserID(ctx, s.db, userID, paymentMethodID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return constants.ErrPaymentMethodNotFound
+	}
+
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		return s.paymentMethodRepo.UpdateStatus(ctx, tx, paymentMethodID, constants.StatusHidden)
+	})
+}
+
+func (s *PaymentMethodService) Unhide(ctx context.Context, userID string, paymentMethodID string) error {
+	exists, err := s.paymentMethodRepo.ExistsByIDAndUserID(ctx, s.db, userID, paymentMethodID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return constants.ErrPaymentMethodNotFound
+	}
+
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		return s.paymentMethodRepo.UpdateStatus(ctx, tx, paymentMethodID, constants.StatusActive)
+	})
+}

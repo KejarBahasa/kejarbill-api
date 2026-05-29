@@ -80,11 +80,11 @@ func (r *PaymentMethodRepository) FindByUserID(ctx context.Context, db database.
 		FROM payment_methods
 		WHERE user_id = $1
 			AND deleted_at IS NULL
-			AND status <> 'deleted'
+			AND status = $2
 		ORDER BY is_default DESC, created_at ASC
 	`
 
-	rows, err := db.Query(ctx, query, userID)
+	rows, err := db.Query(ctx, query, userID, "active")
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +145,20 @@ func (r *PaymentMethodRepository) SetDefault(ctx context.Context, db database.Pg
 	`
 
 	_, err := db.Exec(ctx, query, paymentMethodID)
+
+	return err
+}
+
+func (r *PaymentMethodRepository) UpdateStatus(ctx context.Context, db database.PgxExt, paymentMethodID string, status string) error {
+	query := `
+		UPDATE payment_methods
+		SET
+			status = $2,
+			updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := db.Exec(ctx, query, paymentMethodID, status)
 
 	return err
 }
