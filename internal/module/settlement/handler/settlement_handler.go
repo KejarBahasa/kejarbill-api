@@ -121,3 +121,17 @@ func (h *SettlementHandler) GetByGroupID(c fiber.Ctx) error {
 		},
 	)
 }
+
+func (h *SettlementHandler) GetDetail(c fiber.Ctx) error {
+	var params dto.SettlementIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	result, err := h.settlementService.GetDetail(c.Context(), params.SettlementID)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+	}
+
+	return response.Success(c, "settlement detail fetched", result)
+}

@@ -113,3 +113,62 @@ func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.Pg
 
 	return settlements, nil
 }
+
+func (r *SettlementRepository) FindDetailByID(ctx context.Context, db database.PgxExt, settlementID string) (*entity.SettlementDetail, error) {
+	query := `
+		SELECT
+			s.id,
+			s.group_id,
+			s.amount,
+			s.payment_channel,
+			s.payment_method_id,
+			s.notes,
+			s.paid_at,
+			s.status,
+
+			fp.id,
+			fp.display_name,
+
+			tp.id,
+			tp.display_name,
+
+			pm.provider_name,
+			pm.method_type
+
+		FROM settlements s
+
+		INNER JOIN group_participants fp
+			ON fp.id = s.from_participant_id
+
+		INNER JOIN group_participants tp
+			ON tp.id = s.to_participant_id
+
+		LEFT JOIN payment_methods pm
+			ON pm.id = s.payment_method_id
+
+		WHERE s.id = $1
+	`
+
+	var detail entity.SettlementDetail
+	err := db.QueryRow(ctx, query, settlementID).Scan(
+		&detail.ID,
+		&detail.GroupID,
+		&detail.Amount,
+		&detail.PaymentChannel,
+		&detail.PaymentMethodID,
+		&detail.Notes,
+		&detail.PaidAt,
+		&detail.Status,
+		&detail.FromParticipantID,
+		&detail.FromDisplayName,
+		&detail.ToParticipantID,
+		&detail.ToDisplayName,
+		&detail.ProviderName,
+		&detail.MethodType,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &detail, nil
+}

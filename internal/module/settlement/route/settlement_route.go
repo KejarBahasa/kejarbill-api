@@ -13,6 +13,9 @@ func SettlementRoute(
 
 	authMiddleware *middleware.AuthMiddleware,
 
-	settlementHandler *handler.SettlementHandler,
+	handler *handler.SettlementHandler,
 ) {
+	settlement := api.Group("/settlement", authMiddleware.Protected)
+
+	settlement.Get("/:settlement_id", handler.GetDetail)
 }
