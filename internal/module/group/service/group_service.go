@@ -53,12 +53,13 @@ func NewGroupService(
 	}
 }
 
-func (s *GroupService) Create(ctx context.Context, userID string, name string) (string, error) {
+func (s *GroupService) Create(ctx context.Context, userID string, name string, description *string) (string, error) {
 	var groupID string
 	err := database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		createdGroupID, err := s.groupRepo.Create(ctx, tx, &groupEntity.Group{
-			Name:      name,
-			CreatedBy: userID,
+			Name:        name,
+			Description: description,
+			CreatedBy:   userID,
 		})
 		if err != nil {
 			return err
