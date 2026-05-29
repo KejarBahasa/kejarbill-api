@@ -53,3 +53,20 @@ func (h *PaymentMethodHandler) FindMine(c fiber.Ctx) error {
 		"payment_methods": paymentMethods,
 	})
 }
+
+func (h *PaymentMethodHandler) SetDefault(c fiber.Ctx) error {
+	var params dto.PaymentMethodIDParams
+
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	err := h.paymentMethodService.SetDefault(c.Context(), userID, params.PaymentMethodID)
+	if err != nil {
+		return err
+	}
+
+	return response.Success[any](c, "payment method updated", nil)
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/repository"
@@ -114,4 +115,23 @@ func (s *PaymentMethodService) FindMyPaymentMethods(ctx context.Context, userID 
 	}
 
 	return result, nil
+}
+
+func (s *PaymentMethodService) SetDefault(ctx context.Context, userID string, paymentMethodID string) error {
+	exists, err := s.paymentMethodRepo.ExistsByIDAndUserID(ctx, s.db, userID, paymentMethodID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return constants.ErrPaymentMethodNotFound
+	}
+
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		err := s.paymentMethodRepo.ClearDefault(ctx, tx, userID)
+		if err != nil {
+			return err
+		}
+
+		return s.paymentMethodRepo.SetDefault(ctx, tx, paymentMethodID)
+	})
 }

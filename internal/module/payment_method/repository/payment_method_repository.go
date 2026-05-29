@@ -118,3 +118,33 @@ func (r *PaymentMethodRepository) FindByUserID(ctx context.Context, db database.
 
 	return result, rows.Err()
 }
+
+func (r *PaymentMethodRepository) ExistsByIDAndUserID(ctx context.Context, db database.PgxExt, userID string, paymentMethodID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM payment_methods
+			WHERE id = $1
+				AND user_id = $2
+				AND deleted_at IS NULL
+				AND status != 'deleted'
+		)
+	`
+
+	var exists bool
+	err := db.QueryRow(ctx, query, paymentMethodID, userID).Scan(&exists)
+
+	return exists, err
+}
+
+func (r *PaymentMethodRepository) SetDefault(ctx context.Context, db database.PgxExt, paymentMethodID string) error {
+	query := `
+		UPDATE payment_methods
+		SET is_default = TRUE
+		WHERE id = $1
+	`
+
+	_, err := db.Exec(ctx, query, paymentMethodID)
+
+	return err
+}

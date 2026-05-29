@@ -19,4 +19,6 @@ func PaymentMethodRoute(
 	paymentMethod.Post("/", handler.Create)
 
 	paymentMethod.Get("/", handler.FindMine)
+
+	paymentMethod.Patch("/:payment_method_id/default", handler.SetDefault)
 }
