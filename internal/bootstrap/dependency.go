@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"log"
+
 	activityHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/activity/handler"
 	activityServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/activity/service"
 
@@ -30,6 +32,10 @@ import (
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
+	paymentMethodHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/handler"
+	paymentMethodRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/repository"
+	paymentMethodServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/service"
+
 	settlementHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/handler"
 	settlementRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/repository"
 	settlementServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/service"
@@ -55,6 +61,7 @@ type Dependency struct {
 	Redis          *goredis.Client
 	PasetoMaker    *security.PasetoMaker
 	SessionStore   *security.SessionStore
+	Encryption     *security.Encryption
 	AuthMiddleware *middleware.AuthMiddleware
 
 	AuthHandler *authHandlerPkg.AuthHandler
@@ -74,6 +81,8 @@ type Dependency struct {
 	BalanceHandler *balanceHandlerPkg.BalanceHandler
 
 	SettlementHandler *settlementHandlerPkg.SettlementHandler
+
+	PaymentMethodHandler *paymentMethodHandlerPkg.PaymentMethodHandler
 }
 
 func BuildDependency() (*Dependency, error) {
@@ -90,6 +99,11 @@ func BuildDependency() (*Dependency, error) {
 
 	sessionStore := security.NewSessionStore(rdb)
 
+	encryption, err := security.NewEncryption(cfg.PaymentMethodEncryptionKey)
+	if err != nil {
+		log.Fatalf("failed to initialize encryption: %v", err)
+	}
+
 	authRepo := authRepoPkg.NewAuthRepository(db)
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ledgerRepo := ledgerRepoPkg.NewLedgerRepository()
@@ -98,6 +112,7 @@ func BuildDependency() (*Dependency, error) {
 	groupParticipantRepo := groupParticipantRepoPkg.NewGroupParticipantRepository()
 	expenseRepo := expenseRepoPkg.NewExpenseRepository()
 	settlementRepo := settlementRepoPkg.NewSettlementRepository()
+	paymentMethodRepo := paymentMethodRepoPkg.NewPaymentMethodRepository()
 
 	authMiddleware := middleware.NewAuthMiddleware(pasetoMaker, authRepo)
 
@@ -111,6 +126,7 @@ func BuildDependency() (*Dependency, error) {
 	activityService := activityServicePkg.NewActivityService(db, expenseRepo, settlementRepo, groupRepo, groupMemberRepo)
 	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupMemberRepo)
 	settlementService := settlementServicePkg.NewSettlementService(db, settlementRepo, ledgerRepo, groupRepo, groupMemberRepo)
+	paymentMethodService := paymentMethodServicePkg.NewPaymentMethodService(db, encryption, paymentMethodRepo)
 
 	authHandler := authHandlerPkg.NewAuthHandler(authService)
 	userHandler := userHandlerPkg.NewUserHandler(userService)
@@ -121,9 +137,11 @@ func BuildDependency() (*Dependency, error) {
 	activityHandler := activityHandlerPkg.NewActivityHandler(activityService)
 	balanceHandler := balanceHandlerPkg.NewBalanceHandler(balanceService)
 	settlementHandler := settlementHandlerPkg.NewSettlementHandler(settlementService)
+	paymentMethodHandler := paymentMethodHandlerPkg.NewPaymentMethodHandler(paymentMethodService)
 
 	return &Dependency{
 		Config:         cfg,
+		Encryption:     encryption,
 		DB:             db,
 		Redis:          rdb,
 		PasetoMaker:    pasetoMaker,
@@ -147,5 +165,7 @@ func BuildDependency() (*Dependency, error) {
 		BalanceHandler: balanceHandler,
 
 		SettlementHandler: settlementHandler,
+
+		PaymentMethodHandler: paymentMethodHandler,
 	}, nil
 }

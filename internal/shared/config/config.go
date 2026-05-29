@@ -30,6 +30,8 @@ type Config struct {
 
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
+
+	PaymentMethodEncryptionKey string `mapstructure:"PAYMENT_METHOD_ENCRYPTION_KEY"`
 }
 
 func LoadConfig() *Config {
