@@ -162,3 +162,30 @@ func (r *PaymentMethodRepository) UpdateStatus(ctx context.Context, db database.
 
 	return err
 }
+
+func (r *PaymentMethodRepository) Update(ctx context.Context, db database.PgxExt, paymentMethod *entity.PaymentMethod) error {
+	query := `
+		UPDATE payment_methods
+		SET
+			provider_name = $2,
+			account_name = $3,
+			account_number = $4,
+			qr_image_url = $5,
+			visibility = $6,
+			updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := db.Exec(
+		ctx,
+		query,
+		paymentMethod.ID,
+		paymentMethod.ProviderName,
+		paymentMethod.AccountName,
+		paymentMethod.AccountNumber,
+		paymentMethod.QRImageURL,
+		paymentMethod.Visibility,
+	)
+
+	return err
+}

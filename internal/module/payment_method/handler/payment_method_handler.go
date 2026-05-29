@@ -106,3 +106,24 @@ func (h *PaymentMethodHandler) Unhide(c fiber.Ctx) error {
 
 	return response.Success[any](c, "payment method unhidden", nil)
 }
+
+func (h *PaymentMethodHandler) Update(c fiber.Ctx) error {
+	var params dto.PaymentMethodIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	var req dto.UpdatePaymentMethodRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	err := h.paymentMethodService.Update(c.Context(), userID, params.PaymentMethodID, &req)
+	if err != nil {
+		return err
+	}
+
+	return response.Success[any](c, "payment method updated", nil)
+}

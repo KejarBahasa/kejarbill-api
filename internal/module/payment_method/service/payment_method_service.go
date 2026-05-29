@@ -163,3 +163,35 @@ func (s *PaymentMethodService) Unhide(ctx context.Context, userID string, paymen
 		return s.paymentMethodRepo.UpdateStatus(ctx, tx, paymentMethodID, constants.StatusActive)
 	})
 }
+
+func (s *PaymentMethodService) Update(ctx context.Context, userID string, paymentMethodID string, req *dto.UpdatePaymentMethodRequest) error {
+	exists, err := s.paymentMethodRepo.ExistsByIDAndUserID(ctx, s.db, userID, paymentMethodID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return constants.ErrPaymentMethodNotFound
+	}
+
+	var encryptedAccountNumber []byte
+
+	if req.AccountNumber != "" {
+		ciphertext, err := s.encryption.Encrypt(req.AccountNumber)
+		if err != nil {
+			return err
+		}
+
+		encryptedAccountNumber = ciphertext
+	}
+
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		return s.paymentMethodRepo.Update(ctx, tx, &entity.PaymentMethod{
+			ID:            paymentMethodID,
+			ProviderName:  req.ProviderName,
+			AccountName:   utils.PtrOrNil(req.AccountName),
+			AccountNumber: encryptedAccountNumber,
+			QRImageURL:    utils.PtrOrNil(req.QRImageURL),
+			Visibility:    req.Visibility,
+		})
+	})
+}
