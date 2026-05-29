@@ -18,9 +18,10 @@ type ExpenseDetailPayerResponse struct {
 }
 
 type ExpenseDetailParticipantResponse struct {
-	ParticipantID string `json:"participant_id"`
-	DisplayName   string `json:"display_name"`
-	ShareAmount   int64  `json:"share_amount"`
+	ParticipantID   string `json:"participant_id"`
+	DisplayName     string `json:"display_name"`
+	ParticipantType string `json:"participant_type"`
+	ShareAmount     int64  `json:"share_amount"`
 }
 
 type ExpenseDetailItemResponse struct {

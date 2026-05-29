@@ -216,9 +216,10 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 
 	for _, participant := range expense.Participants {
 		participants = append(participants, dto.ExpenseDetailParticipantResponse{
-			ParticipantID: participant.ParticipantID,
-			DisplayName:   participant.DisplayName,
-			ShareAmount:   participant.ShareAmount,
+			ParticipantID:   participant.ParticipantID,
+			DisplayName:     participant.DisplayName,
+			ParticipantType: participant.ParticipantType,
+			ShareAmount:     participant.ShareAmount,
 		})
 	}
 

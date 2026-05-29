@@ -17,7 +17,8 @@ type ExpenseDetail struct {
 }
 
 type ExpenseDetailParticipant struct {
-	ParticipantID string
-	DisplayName   string
-	ShareAmount   int64
+	ParticipantID   string
+	DisplayName     string
+	ParticipantType string
+	ShareAmount     int64
 }

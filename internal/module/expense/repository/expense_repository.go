@@ -243,6 +243,7 @@ func (r *ExpenseRepository) FindExpenseParticipants(ctx context.Context, db data
 		SELECT
 			ep.participant_id,
 			p.display_name,
+			p.participant_type,
 			ep.share_amount
 		FROM expense_participants ep
 		INNER JOIN group_participants p
@@ -265,6 +266,7 @@ func (r *ExpenseRepository) FindExpenseParticipants(ctx context.Context, db data
 		err := rows.Scan(
 			&participant.ParticipantID,
 			&participant.DisplayName,
+			&participant.ParticipantType,
 			&participant.ShareAmount,
 		)
 		if err != nil {
