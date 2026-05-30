@@ -65,7 +65,15 @@ func (s *ExpenseService) CreateEqualExpense(ctx context.Context, userID string, 
 		return "", expenseConstants.ErrParticipantsRequired
 	}
 
-	validationResult, err := s.validateExpenseCreation(ctx, userID, req.GroupID, req.PayerParticipantID, req.ParticipantIDs, req.ExpenseDate)
+	validationResult, err := s.validateExpenseCreation(
+		ctx,
+		expenseConstants.SplitMethodEqual,
+		userID,
+		req.GroupID,
+		req.PayerParticipantID,
+		req.ParticipantIDs,
+		req.ExpenseDate,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -119,6 +127,7 @@ func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string,
 
 	validationResult, err := s.validateExpenseCreation(
 		ctx,
+		expenseConstants.SplitMethodCustom,
 		userID,
 		req.GroupID,
 		req.PayerParticipantID,
@@ -171,6 +180,7 @@ func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID strin
 
 	validationResult, err := s.validateExpenseCreation(
 		ctx,
+		expenseConstants.SplitMethodItemized,
 		userID,
 		req.GroupID,
 		req.PayerParticipantID,

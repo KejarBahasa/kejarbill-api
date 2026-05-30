@@ -12,7 +12,7 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 )
 
-func (s *ExpenseService) validateExpenseCreation(ctx context.Context, userID string, groupID string, payerParticipantID string, participantIDs []string, expenseDate string) (*entity.ExpenseValidationResult, error) {
+func (s *ExpenseService) validateExpenseCreation(ctx context.Context, splitMethod string, userID string, groupID string, payerParticipantID string, participantIDs []string, expenseDate string) (*entity.ExpenseValidationResult, error) {
 	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
 	if err != nil {
 		return nil, err
@@ -33,8 +33,14 @@ func (s *ExpenseService) validateExpenseCreation(ctx context.Context, userID str
 		return nil, expenseConstants.ErrParticipantsRequired
 	}
 
-	if utils.HasDuplicateString(participantIDs) {
-		return nil, expenseConstants.ErrDuplicateParticipants
+	if splitMethod != expenseConstants.SplitMethodItemized {
+		if utils.HasDuplicateString(participantIDs) {
+			return nil, expenseConstants.ErrDuplicateParticipants
+		}
+	}
+
+	if splitMethod == expenseConstants.SplitMethodItemized {
+		participantIDs = utils.UniqueStrings(participantIDs)
 	}
 
 	payerExists := false
