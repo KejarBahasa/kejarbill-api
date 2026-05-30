@@ -12,8 +12,6 @@ func BuildApp(dep *Dependency) *fiber.App {
 		AppName:      dep.Config.AppName,
 		ErrorHandler: middleware.ErrorHandler,
 		ReadTimeout:  10 * time.Second,
-		TrustProxy:   true,
-		ProxyHeader:  "CF-Connecting-IP",
 	})
 
 	RegisterMiddleware(app, dep.Config.AppEnv)
