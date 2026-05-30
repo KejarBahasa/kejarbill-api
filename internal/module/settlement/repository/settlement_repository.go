@@ -83,7 +83,7 @@ func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.Pg
 		INNER JOIN group_participants tp
 			ON tp.id = s.to_participant_id
 		WHERE s.group_id = $1
-		ORDER BY s.created_at DESC
+		ORDER BY s.paid_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
