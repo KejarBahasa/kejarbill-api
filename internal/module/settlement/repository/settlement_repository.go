@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type SettlementRepository struct{}
@@ -20,13 +23,15 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 			from_participant_id,
 			to_participant_id,
 			amount,
+			payment_channel,
+			payment_method_id,
 			status,
 			notes,
 			paid_at,
 			created_by
 		)
 		VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10
 		)
 		RETURNING id
 	`
@@ -40,6 +45,8 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 		settlement.FromParticipantID,
 		settlement.ToParticipantID,
 		settlement.Amount,
+		settlement.PaymentChannel,
+		settlement.PaymentMethodID,
 		settlement.Status,
 		settlement.Notes,
 		settlement.PaidAt,
@@ -80,7 +87,7 @@ func (r *SettlementRepository) FindByGroupID(ctx context.Context, db database.Pg
 		INNER JOIN group_participants tp
 			ON tp.id = s.to_participant_id
 		WHERE s.group_id = $1
-		ORDER BY s.created_at DESC
+		ORDER BY s.paid_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
@@ -167,6 +174,9 @@ func (r *SettlementRepository) FindDetailByID(ctx context.Context, db database.P
 		&detail.MethodType,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrSettlementNotFound
+		}
 		return nil, err
 	}
 

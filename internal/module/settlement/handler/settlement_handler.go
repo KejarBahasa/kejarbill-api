@@ -61,6 +61,9 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 		case errors.Is(err, settlementConstants.ErrSettlementAmountExceeded):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
+		case errors.Is(err, settlementConstants.ErrInvalidSettlementPaymentMethod):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
 		default:
 			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
 		}
