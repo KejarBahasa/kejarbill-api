@@ -10,8 +10,6 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/repository"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
-
-	"github.com/google/uuid"
 )
 
 type AuthService struct {
@@ -39,8 +37,18 @@ func NewAuthService(
 }
 
 func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) error {
-	existingUser, _ := s.authRepo.FindByEmail(ctx, req.Email)
-	if existingUser != nil {
+	username, email, err := s.authRepo.CheckUsernameOrEmail(ctx, req.Username, req.Email)
+	if err != nil {
+		return err
+	}
+
+	if req.Username == username && req.Email == email {
+		return errors.New("username and email already taken")
+	}
+	if req.Username == username {
+		return errors.New("username already taken")
+	}
+	if req.Email == email {
 		return errors.New("email already registered")
 	}
 
@@ -50,7 +58,6 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 	}
 
 	user := &entity.User{
-		ID:           uuid.NewString(),
 		Username:     req.Username,
 		Email:        req.Email,
 		Name:         req.Name,
@@ -61,7 +68,7 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 }
 
 func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, clientInfo *utils.ClientInfo) (*dto.AuthResponse, error) {
-	user, err := s.authRepo.AuthLogin(ctx, req.Email)
+	user, err := s.authRepo.AuthLogin(ctx, req.Identifier)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}

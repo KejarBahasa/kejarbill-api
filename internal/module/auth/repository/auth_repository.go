@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/auth/entity"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,6 +35,7 @@ func (r *AuthRepository) AuthLogin(ctx context.Context, identifier string) (*ent
 		SELECT
 			id,
 			full_name,
+			username,
 			email,
 			password_hash,
 			status,
@@ -46,6 +49,7 @@ func (r *AuthRepository) AuthLogin(ctx context.Context, identifier string) (*ent
 	err := r.db.QueryRow(ctx, query, identifier).Scan(
 		&user.ID,
 		&user.Name,
+		&user.Username,
 		&user.Email,
 		&user.PasswordHash,
 		&user.Status,
@@ -129,22 +133,43 @@ func (r *AuthRepository) FindByEmail(ctx context.Context, email string) (*entity
 	return &user, nil
 }
 
+func (r *AuthRepository) CheckUsernameOrEmail(ctx context.Context, username string, email string) (string, string, error) {
+	query := `
+		SELECT username, email 
+		FROM users
+		WHERE username = $1 OR email = $2
+		LIMIT 1
+	`
+
+	var (
+		dbUsername string
+		dbEmail    string
+	)
+	err := r.db.QueryRow(ctx, query, username, email).Scan(&dbUsername, &dbEmail)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+
+	return dbUsername, dbEmail, nil
+}
+
 func (r *AuthRepository) CreateUser(ctx context.Context, user *entity.User) error {
 	query := `
 		INSERT INTO users (
-			id,
 			email,
 			username,
 			full_name,
 			password_hash
 		)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4)
 	`
 
 	_, err := r.db.Exec(
 		ctx,
 		query,
-		user.ID,
 		user.Email,
 		user.Username,
 		user.Name,
