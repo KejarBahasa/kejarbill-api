@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type SettlementRepository struct{}
@@ -167,6 +170,9 @@ func (r *SettlementRepository) FindDetailByID(ctx context.Context, db database.P
 		&detail.MethodType,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrSettlementNotFound
+		}
 		return nil, err
 	}
 
