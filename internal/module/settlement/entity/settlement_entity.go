@@ -3,15 +3,17 @@ package entity
 import "time"
 
 type Settlement struct {
+	PaymentMethodID   *string
+	Notes             *string
+	UpdatedAt         *time.Time
+	PaidAt            time.Time
+	CreatedAt         time.Time
 	ID                string
 	GroupID           string
 	FromParticipantID string
 	ToParticipantID   string
-	Amount            int64
+	PaymentChannel    string
 	Status            string
-	Notes             *string
-	PaidAt            time.Time
 	CreatedBy         string
-	CreatedAt         time.Time
-	UpdatedAt         *time.Time
+	Amount            int64
 }

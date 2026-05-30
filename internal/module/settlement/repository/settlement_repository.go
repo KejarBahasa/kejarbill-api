@@ -23,13 +23,15 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 			from_participant_id,
 			to_participant_id,
 			amount,
+			payment_channel,
+			payment_method_id,
 			status,
 			notes,
 			paid_at,
 			created_by
 		)
 		VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10
 		)
 		RETURNING id
 	`
@@ -43,6 +45,8 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 		settlement.FromParticipantID,
 		settlement.ToParticipantID,
 		settlement.Amount,
+		settlement.PaymentChannel,
+		settlement.PaymentMethodID,
 		settlement.Status,
 		settlement.Notes,
 		settlement.PaidAt,

@@ -14,6 +14,8 @@ import (
 
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 
+	paymentMethodRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/repository"
+
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/entity"
 
@@ -37,6 +39,8 @@ type SettlementService struct {
 	groupRepo *groupRepoPkg.GroupRepository
 
 	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository
+
+	paymentMethodRepo *paymentMethodRepoPkg.PaymentMethodRepository
 }
 
 func NewSettlementService(
@@ -49,6 +53,8 @@ func NewSettlementService(
 	groupRepo *groupRepoPkg.GroupRepository,
 
 	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
+
+	paymentMethodRepo *paymentMethodRepoPkg.PaymentMethodRepository,
 ) *SettlementService {
 
 	return &SettlementService{
@@ -61,6 +67,8 @@ func NewSettlementService(
 		groupRepo: groupRepo,
 
 		groupMemberRepo: groupMemberRepo,
+
+		paymentMethodRepo: paymentMethodRepo,
 	}
 }
 
@@ -87,6 +95,17 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 		return "", settlementConstants.ErrInvalidSettlementParticipants
 	}
 
+	if req.PaymentMethodID != "" {
+		exists, err := s.paymentMethodRepo.ExistsByIDAndUserID(ctx, s.db, userID, req.PaymentMethodID)
+		if err != nil {
+			return "", err
+		}
+
+		if !exists {
+			return "", settlementConstants.ErrInvalidSettlementPaymentMethod
+		}
+	}
+
 	outstandingBalance, err := s.ledgerRepo.GetOutstandingBalance(ctx, s.db, groupID, req.FromParticipantID, req.ToParticipantID)
 	if err != nil {
 		return "", err
@@ -111,6 +130,8 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 			GroupID:           groupID,
 			FromParticipantID: req.FromParticipantID,
 			ToParticipantID:   req.ToParticipantID,
+			PaymentChannel:    req.PaymentChannel,
+			PaymentMethodID:   utils.PtrOrNil(req.PaymentMethodID),
 			Amount:            req.Amount,
 			Status:            settlementConstants.StatusCompleted,
 			Notes:             utils.PtrOrNil(req.Notes),
