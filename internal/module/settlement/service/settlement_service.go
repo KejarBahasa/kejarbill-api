@@ -176,7 +176,7 @@ func (s *SettlementService) GetByGroupID(ctx context.Context, requesterUserID st
 		return nil, err
 	}
 
-	settlements, err := s.settlementRepo.FindByGroupID(ctx, s.db, groupID, offset, page)
+	settlements, err := s.settlementRepo.FindByGroupID(ctx, s.db, groupID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
