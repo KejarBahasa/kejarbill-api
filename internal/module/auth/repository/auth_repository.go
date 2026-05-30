@@ -156,6 +156,16 @@ func (r *AuthRepository) CheckUsernameOrEmail(ctx context.Context, username stri
 	return dbUsername, dbEmail, nil
 }
 
+func (r *AuthRepository) ExistsUsername(ctx context.Context, username string) (bool, error) {
+	query := `
+		SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)
+	`
+
+	var exists bool
+	err := r.db.QueryRow(ctx, query, username).Scan(&exists)
+	return exists, err
+}
+
 func (r *AuthRepository) CreateUser(ctx context.Context, user *entity.User) error {
 	query := `
 		INSERT INTO users (

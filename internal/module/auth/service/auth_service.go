@@ -190,3 +190,12 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 
 	return s.sessionStore.Delete(ctx, payload.TokenID)
 }
+
+func (s *AuthService) CheckUsernameAvailability(ctx context.Context, username string) (bool, error) {
+	exists, err := s.authRepo.ExistsUsername(ctx, username)
+	if err != nil {
+		return false, err
+	}
+
+	return !exists, nil
+}
