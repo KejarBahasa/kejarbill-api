@@ -16,6 +16,8 @@ import (
 	groupParticipantEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 
+	userRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/user/repository"
+
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
@@ -30,6 +32,8 @@ type GroupService struct {
 	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository
 
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
+
+	userRepo *userRepoPkg.UserRepository
 }
 
 func NewGroupService(
@@ -40,6 +44,8 @@ func NewGroupService(
 	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
 
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
+
+	userRepo *userRepoPkg.UserRepository,
 ) *GroupService {
 
 	return &GroupService{
@@ -50,15 +56,23 @@ func NewGroupService(
 		groupMemberRepo: groupMemberRepo,
 
 		groupParticipantRepo: groupParticipantRepo,
+
+		userRepo: userRepo,
 	}
 }
 
-func (s *GroupService) Create(ctx context.Context, userID string, name string) (string, error) {
+func (s *GroupService) Create(ctx context.Context, userID string, name string, description *string) (string, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+
 	var groupID string
-	err := database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+	err = database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
 		createdGroupID, err := s.groupRepo.Create(ctx, tx, &groupEntity.Group{
-			Name:      name,
-			CreatedBy: userID,
+			Name:        name,
+			Description: description,
+			CreatedBy:   userID,
 		})
 		if err != nil {
 			return err
@@ -79,7 +93,7 @@ func (s *GroupService) Create(ctx context.Context, userID string, name string) (
 		err = s.groupParticipantRepo.Create(ctx, tx, &groupParticipantEntity.GroupParticipant{
 			GroupID:         groupID,
 			UserID:          utils.PtrOrNil(userID),
-			DisplayName:     "You",
+			DisplayName:     user.Name,
 			ParticipantType: groupParticipantConstants.TypeRegistered,
 			CreatedBy:       userID,
 		})

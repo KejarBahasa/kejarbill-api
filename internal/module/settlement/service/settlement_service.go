@@ -191,3 +191,38 @@ func (s *SettlementService) GetByGroupID(ctx context.Context, requesterUserID st
 		TotalPages:  totalPages,
 	}, nil
 }
+
+func (s *SettlementService) GetDetail(ctx context.Context, settlementID string) (*dto.SettlementDetailResponse, error) {
+	settlement, err := s.settlementRepo.FindDetailByID(ctx, s.db, settlementID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &dto.SettlementDetailResponse{
+		ID:             settlement.ID,
+		GroupID:        settlement.GroupID,
+		Amount:         settlement.Amount,
+		PaymentChannel: settlement.PaymentChannel,
+		Status:         settlement.Status,
+		PaidAt:         settlement.PaidAt.Format(time.RFC3339),
+		Notes:          settlement.Notes,
+		FromParticipant: dto.SettlementDetailParticipantInfo{
+			ParticipantID: settlement.FromParticipantID,
+			DisplayName:   settlement.FromDisplayName,
+		},
+		ToParticipant: dto.SettlementDetailParticipantInfo{
+			ParticipantID: settlement.ToParticipantID,
+			DisplayName:   settlement.ToDisplayName,
+		},
+	}
+
+	if settlement.PaymentMethodID != nil {
+		response.PaymentMethod = &dto.SettlementDetailPaymentMethodInfo{
+			ID:           *settlement.PaymentMethodID,
+			MethodType:   utils.DerefString(settlement.MethodType),
+			ProviderName: utils.DerefString(settlement.ProviderName),
+		}
+	}
+
+	return response, nil
+}

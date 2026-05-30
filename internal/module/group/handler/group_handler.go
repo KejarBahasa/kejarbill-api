@@ -34,7 +34,7 @@ func (h *GroupHandler) Create(c fiber.Ctx) error {
 
 	userID := security.GetUserID(c)
 
-	groupID, err := h.groupService.Create(c.Context(), userID, body.Name)
+	groupID, err := h.groupService.Create(c.Context(), userID, body.Name, body.Description)
 	if err != nil {
 		return err
 	}

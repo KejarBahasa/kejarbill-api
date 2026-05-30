@@ -10,6 +10,10 @@ import (
 
 var Validate = goValidator.New()
 
+func init() {
+	registerCustomValidators()
+}
+
 func ParseValidationError(req any, err error, tags ...string) []ValidationError {
 	errors := make([]ValidationError, 0)
 	validationErrors := err.(goValidator.ValidationErrors)
@@ -123,6 +127,12 @@ func parseMessage(e goValidator.FieldError) string {
 
 	case "lt":
 		return "must be less than " + param
+
+	case "password_strength":
+		return "must be 8-128 characters with a mix of letters, numbers, and symbols (no spaces/emojis)"
+
+	case "username":
+		return "username is invalid or contains disallowed characters"
 
 	default:
 		return "invalid value"

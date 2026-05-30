@@ -295,7 +295,7 @@ func (s *ExpenseService) GetByGroupID(ctx context.Context, requesterUserID strin
 func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID string, expenseID string) (*entity.ExpenseDetail, error) {
 	expense, err := s.expenseRepo.FindDetailByID(ctx, s.db, expenseID)
 	if err != nil {
-		return nil, err
+		return nil, expenseConstants.ErrExpenseNotFound
 	}
 
 	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, expense.GroupID, requesterUserID)
@@ -311,7 +311,25 @@ func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID stri
 		return nil, err
 	}
 
+	items, err := s.expenseRepo.FindExpenseItemsByExpenseID(ctx, s.db, expenseID)
+	if err != nil {
+		return nil, err
+	}
+	itemResponses := make([]entity.ExpenseItem, 0, len(items))
+
+	for _, item := range items {
+		itemResponses = append(itemResponses, entity.ExpenseItem{
+			ID:        item.ID,
+			Name:      item.Name,
+			Qty:       item.Qty,
+			UnitPrice: item.UnitPrice,
+			Subtotal:  item.Subtotal,
+			Notes:     item.Notes,
+		})
+	}
+
 	expense.Participants = participants
+	expense.Items = itemResponses
 
 	return expense, nil
 }

@@ -1,16 +1,32 @@
 package security
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"crypto/sha256"
 
-func HashPassword(password string) (string, error) {
+	"golang.org/x/crypto/bcrypt"
+)
+
+func preHashPassword(password string) []byte {
+	hash := sha256.Sum256([]byte(password))
+	return hash[:]
+}
+
+func HashPassword(plainPassword string) (string, error) {
+	hashedSHA256 := preHashPassword(plainPassword)
+
 	hashedPassword, err := bcrypt.GenerateFromPassword(
-		[]byte(password),
+		hashedSHA256,
 		bcrypt.DefaultCost,
 	)
 
 	return string(hashedPassword), err
 }
 
-func CheckPassword(password string, hashedPassword string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+func CheckPassword(plainPassword string, hashedPassword string) error {
+	hashedSHA256 := preHashPassword(plainPassword)
+
+	return bcrypt.CompareHashAndPassword(
+		[]byte(hashedPassword),
+		hashedSHA256,
+	)
 }

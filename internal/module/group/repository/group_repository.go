@@ -34,16 +34,16 @@ func (r *GroupRepository) ExistsByID(ctx context.Context, db database.PgxExt, gr
 func (r *GroupRepository) Create(ctx context.Context, db database.PgxExt, group *entity.Group) (string, error) {
 	query := `
 		INSERT INTO groups (
-			name, created_by
+			name, description, created_by
 		)
 		VALUES (
-			$1, $2
+			$1, $2, $3
 		)
 		RETURNING id
 	`
 
 	var groupID string
-	err := db.QueryRow(ctx, query, group.Name, group.CreatedBy).Scan(&groupID)
+	err := db.QueryRow(ctx, query, group.Name, group.Description, group.CreatedBy).Scan(&groupID)
 
 	return groupID, err
 }
