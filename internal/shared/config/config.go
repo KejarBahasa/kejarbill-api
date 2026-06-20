@@ -10,45 +10,21 @@ import (
 )
 
 type Config struct {
-	AppName string `mapstructure:"APP_NAME"`
-	AppPort string `mapstructure:"APP_PORT"`
-	AppEnv  string `mapstructure:"APP_ENV"`
-	AppTZ   string `mapstructure:"APP_TZ"` // Timezone
-
-	DBHost         string `mapstructure:"DB_HOST"`
-	DBPort         string `mapstructure:"DB_PORT"`
-	DBUser         string `mapstructure:"DB_USER"`
-	DBPass         string `mapstructure:"DB_PASS"`
-	DBName         string `mapstructure:"DB_NAME"`
-	DBPoolMaxConns int32  `mapstructure:"DB_POOL_MAX_CONNS"`
-	DBPoolMinConns int32  `mapstructure:"DB_POOL_MIN_CONNS"`
-
-	RedisAddr     string `mapstructure:"REDIS_ADDR"`
-	RedisPassword string `mapstructure:"REDIS_PASSWORD"`
-
-	PasetoSecretKey string `mapstructure:"PASETO_SECRET_KEY"`
-
-	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
-	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
-
-	PaymentMethodEncryptionKey string `mapstructure:"PAYMENT_METHOD_ENCRYPTION_KEY"`
+	App    AppConfig    `mapstructure:",squash"`
+	DB     DBConfig     `mapstructure:",squash"`
+	Redis  RedisConfig  `mapstructure:",squash"`
+	Paseto PasetoConfig `mapstructure:",squash"`
+	Auth   AuthConfig   `mapstructure:",squash"`
+	Crypto CryptoConfig `mapstructure:",squash"`
 }
 
 func LoadConfig() *Config {
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
+	bindEnvs(reflect.TypeOf(Config{}))
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("Warning: .env file not found (%v). Using OS environment variables.", err)
-
-		t := reflect.TypeOf(Config{})
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("mapstructure")
-			if tag != "" {
-				viper.BindEnv(tag)
-			}
-		}
+		log.Printf("Warning: env file not found (%v). Using OS environment variables.", err)
 	}
 
 	var config Config
@@ -56,19 +32,36 @@ func LoadConfig() *Config {
 		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
 
-	if config.PasetoSecretKey == "" {
+	if config.Paseto.SecretKey == "" {
 		log.Fatal("PASETO_SECRET_KEY is required")
 	}
 
-	if config.AppTZ == "" {
-		config.AppTZ = "Asia/Jakarta"
+	if config.App.TZ == "" {
+		config.App.TZ = "Asia/Jakarta"
 	}
 
-	tz, err := time.LoadLocation(config.AppTZ)
+	tz, err := time.LoadLocation(config.App.TZ)
 	if err != nil {
 		log.Fatalf("Failed to load timezone: %v", err)
 	}
 	time.Local = tz
 
 	return &config
+}
+
+func bindEnvs(t reflect.Type) {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+
+		tag := f.Tag.Get("mapstructure")
+
+		if f.Type.Kind() == reflect.Struct && tag == ",squash" {
+			bindEnvs(f.Type)
+			continue
+		}
+
+		if tag != "" && tag != ",squash" {
+			_ = viper.BindEnv(tag)
+		}
+	}
 }

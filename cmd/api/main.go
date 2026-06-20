@@ -23,8 +23,8 @@ func main() {
 
 	// START SERVER
 	go func() {
-		log.Printf("server running on port %s", dep.Config.AppPort)
-		if err := app.Listen(":" + dep.Config.AppPort); err != nil {
+		log.Printf("server running on port %s", dep.Config.App.Port)
+		if err := app.Listen(":" + dep.Config.App.Port); err != nil {
 			log.Fatal(err)
 		}
 	}()

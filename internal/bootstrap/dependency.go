@@ -87,19 +87,19 @@ type Dependency struct {
 
 func BuildDependency() (*Dependency, error) {
 	cfg := config.LoadConfig()
-	logger.Init(cfg.AppEnv, cfg.AppName)
+	logger.Init(cfg.App.Env, cfg.App.Name)
 
 	db := database.NewPostgres(cfg)
-	rdb := redisConn.NewRedis(cfg.RedisAddr, cfg.RedisPassword)
+	rdb := redisConn.NewRedis(cfg.Redis.Addr, cfg.Redis.Password)
 
-	pasetoMaker, err := security.NewPasetoMaker(cfg.PasetoSecretKey)
+	pasetoMaker, err := security.NewPasetoMaker(cfg.Paseto.SecretKey)
 	if err != nil {
 		return nil, err
 	}
 
 	sessionStore := security.NewSessionStore(rdb)
 
-	encryption, err := security.NewEncryption(cfg.PaymentMethodEncryptionKey)
+	encryption, err := security.NewEncryption(cfg.Crypto.PaymentMethodEncryptionKey)
 	if err != nil {
 		log.Fatalf("failed to initialize encryption: %v", err)
 	}
@@ -116,7 +116,7 @@ func BuildDependency() (*Dependency, error) {
 
 	authMiddleware := middleware.NewAuthMiddleware(pasetoMaker, authRepo)
 
-	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.AccessTokenDuration, cfg.RefreshTokenDuration)
+	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.Auth.AccessTokenDuration, cfg.Auth.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
 	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	groupParticipantService := groupParticipantServicePkg.NewGroupParticipantService(db, groupRepo, groupMemberRepo, groupParticipantRepo)

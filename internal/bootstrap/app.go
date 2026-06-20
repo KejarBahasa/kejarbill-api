@@ -9,12 +9,12 @@ import (
 
 func BuildApp(dep *Dependency) *fiber.App {
 	app := fiber.New(fiber.Config{
-		AppName:      dep.Config.AppName,
+		AppName:      dep.Config.App.Name,
 		ErrorHandler: middleware.ErrorHandler,
 		ReadTimeout:  10 * time.Second,
 	})
 
-	RegisterMiddleware(app, dep.Config.AppEnv)
+	RegisterMiddleware(app, dep.Config.App.Env)
 
 	RegisterRoute(app, dep)
 
