@@ -36,15 +36,13 @@ func LoadConfig() *Config {
 		log.Fatal("PASETO_SECRET_KEY is required")
 	}
 
-	if config.App.TZ == "" {
-		config.App.TZ = "Asia/Jakarta"
+	if config.App.TZ != "" {
+		tz, err := time.LoadLocation(config.App.TZ)
+		if err != nil {
+			log.Fatalf("Failed to load timezone %s.: %v", config.App.TZ, err)
+		}
+		time.Local = tz
 	}
-
-	tz, err := time.LoadLocation(config.App.TZ)
-	if err != nil {
-		log.Fatalf("Failed to load timezone: %v", err)
-	}
-	time.Local = tz
 
 	return &config
 }
