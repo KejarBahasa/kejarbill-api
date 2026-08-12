@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type PaymentMethodRepository struct {
@@ -188,4 +191,33 @@ func (r *PaymentMethodRepository) Update(ctx context.Context, db database.PgxExt
 	)
 
 	return err
+}
+
+func (r *PaymentMethodRepository) FindByID(ctx context.Context, db database.PgxExt, paymentMethodID string) (*entity.PaymentMethod, error) {
+	query := `
+	SELECT
+		id,
+		user_id,
+		method_type,
+		status
+	FROM payment_methods
+	WHERE id = $1
+	`
+
+	var paymentMethod entity.PaymentMethod
+	err := db.QueryRow(ctx, query, paymentMethodID).Scan(
+		&paymentMethod.ID,
+		&paymentMethod.UserID,
+		&paymentMethod.MethodType,
+		&paymentMethod.Status,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrPaymentMethodNotFound
+		}
+		return nil, err
+	}
+
+	return &paymentMethod, nil
 }

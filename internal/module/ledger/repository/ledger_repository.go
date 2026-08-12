@@ -57,25 +57,46 @@ func (r *LedgerRepository) BulkCreate(ctx context.Context, db database.PgxExt, l
 
 func (r *LedgerRepository) GetGroupBalances(ctx context.Context, db database.PgxExt, groupID string) ([]dto.GroupBalanceResponse, error) {
 	query := `
+		WITH pair_balances AS (
+			SELECT
+				LEAST(from_participant_id, to_participant_id) AS participant_a_id,
+				GREATEST(from_participant_id, to_participant_id) AS participant_b_id,
+				SUM(
+					CASE
+						WHEN from_participant_id < to_participant_id THEN amount
+						ELSE -amount
+					END
+				)::BIGINT AS amount
+			FROM account_ledger
+			WHERE group_id = $1
+			GROUP BY
+				LEAST(from_participant_id, to_participant_id),
+				GREATEST(from_participant_id, to_participant_id)
+		)
 		SELECT
-			al.from_participant_id,
+			CASE
+				WHEN pb.amount > 0 THEN pb.participant_a_id
+				ELSE pb.participant_b_id
+			END AS from_participant_id,
 			fp.display_name,
-			al.to_participant_id,
+			CASE
+				WHEN pb.amount > 0 THEN pb.participant_b_id
+				ELSE pb.participant_a_id
+			END AS to_participant_id,
 			tp.display_name,
-			SUM(al.amount)::BIGINT AS amount
-		FROM account_ledger al
+			ABS(pb.amount)::BIGINT AS amount
+		FROM pair_balances pb
 		JOIN group_participants fp
-			ON fp.id = al.from_participant_id
+			ON fp.id = CASE
+				WHEN pb.amount > 0 THEN pb.participant_a_id
+				ELSE pb.participant_b_id
+			END
 		JOIN group_participants tp
-			ON tp.id = al.to_participant_id
-		WHERE
-			al.group_id = $1
-		GROUP BY
-			al.from_participant_id,
-			fp.display_name,
-			al.to_participant_id,
-			tp.display_name
-		HAVING SUM(al.amount) > 0
+			ON tp.id = CASE
+				WHEN pb.amount > 0 THEN pb.participant_b_id
+				ELSE pb.participant_a_id
+			END
+		WHERE pb.amount <> 0
 		ORDER BY amount DESC
 	`
 
@@ -152,6 +173,36 @@ func (r *LedgerRepository) GetOutstandingBalance(ctx context.Context, db databas
 	).Scan(&outstanding)
 
 	return outstanding, err
+}
+
+func (r *LedgerRepository) LockParticipantPair(ctx context.Context, db database.PgxExt, groupID string, fromParticipantID string, toParticipantID string) error {
+	query := `
+		SELECT id
+		FROM account_ledger
+		WHERE group_id = $1
+			AND (
+				(from_participant_id = $2 AND to_participant_id = $3)
+				OR
+				(from_participant_id = $3 AND to_participant_id = $2)
+			)
+		ORDER BY id
+		FOR UPDATE
+	`
+
+	rows, err := db.Query(ctx, query, groupID, fromParticipantID, toParticipantID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var ledgerID string
+		if err := rows.Scan(&ledgerID); err != nil {
+			return err
+		}
+	}
+
+	return rows.Err()
 }
 
 func (r *LedgerRepository) DeleteBySourceID(ctx context.Context, db database.PgxExt, sourceID string) error {

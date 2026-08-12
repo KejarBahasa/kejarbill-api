@@ -56,6 +56,76 @@ func (r *SettlementRepository) Create(ctx context.Context, db database.PgxExt, s
 	return settlementID, err
 }
 
+func (r *SettlementRepository) CreateIdempotencyKey(ctx context.Context, db database.PgxExt, idempotencyKey *entity.IdempotencyKey) (bool, error) {
+	query := `
+		INSERT INTO idempotency_keys (
+			user_id,
+			idempotency_key,
+			request_hash,
+			expired_at
+		)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (idempotency_key) DO NOTHING
+	`
+
+	commandTag, err := db.Exec(
+		ctx,
+		query,
+		idempotencyKey.UserID,
+		idempotencyKey.Key,
+		idempotencyKey.RequestHash,
+		idempotencyKey.ExpiredAt,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return commandTag.RowsAffected() == 1, nil
+}
+
+func (r *SettlementRepository) FindIdempotencyKeyByKey(ctx context.Context, db database.PgxExt, key string) (*entity.IdempotencyKey, error) {
+	query := `
+		SELECT
+			user_id,
+			idempotency_key,
+			request_hash,
+			response_code,
+			response_body::TEXT,
+			expired_at
+		FROM idempotency_keys
+		WHERE idempotency_key = $1
+	`
+
+	var idempotencyKey entity.IdempotencyKey
+	err := db.QueryRow(ctx, query, key).Scan(
+		&idempotencyKey.UserID,
+		&idempotencyKey.Key,
+		&idempotencyKey.RequestHash,
+		&idempotencyKey.ResponseCode,
+		&idempotencyKey.ResponseBody,
+		&idempotencyKey.ExpiredAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &idempotencyKey, nil
+}
+
+func (r *SettlementRepository) SaveIdempotencyResponse(ctx context.Context, db database.PgxExt, key string, responseCode int, responseBody string) error {
+	query := `
+		UPDATE idempotency_keys
+		SET
+			response_code = $2,
+			response_body = $3::JSONB
+		WHERE idempotency_key = $1
+	`
+
+	_, err := db.Exec(ctx, query, key, responseCode, responseBody)
+
+	return err
+}
+
 func (r *SettlementRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {
 	query := `
 		SELECT COUNT(*)

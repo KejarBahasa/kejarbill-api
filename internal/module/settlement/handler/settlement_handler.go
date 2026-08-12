@@ -2,12 +2,14 @@ package handler
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 
 	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 
+	paymentMethodConstants "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
 	settlementConstants "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/service"
@@ -45,8 +47,12 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 	}
 
 	userID := security.GetUserID(c)
+	idempotencyKey := strings.TrimSpace(c.Get(settlementConstants.IdempotencyKeyHeader))
+	if idempotencyKey == "" {
+		return response.Error(c, fiber.StatusBadRequest, settlementConstants.ErrIdempotencyKeyRequired.Error(), nil)
+	}
 
-	settlementID, err := h.settlementService.Create(c.Context(), userID, params.GroupID, &body)
+	result, err := h.settlementService.Create(c.Context(), userID, params.GroupID, idempotencyKey, &body)
 	if err != nil {
 		switch {
 		case errors.Is(err, expenseConstants.ErrGroupNotFound):
@@ -61,7 +67,16 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 		case errors.Is(err, settlementConstants.ErrSettlementAmountExceeded):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
-		case errors.Is(err, settlementConstants.ErrInvalidSettlementPaymentMethod):
+		case errors.Is(err, settlementConstants.ErrIdempotencyKeyConflict):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+
+		case errors.Is(err, settlementConstants.ErrInvalidSettlementPaymentMethod),
+			errors.Is(err, settlementConstants.ErrPaymentMethodMustBeEmpty),
+			errors.Is(err, settlementConstants.ErrPaymentMethodRequired),
+			errors.Is(err, settlementConstants.ErrPaymentMethodNotOwned),
+			errors.Is(err, settlementConstants.ErrInvalidPaymentMethodType),
+			errors.Is(err, paymentMethodConstants.ErrPaymentMethodNotFound),
+			errors.Is(err, paymentMethodConstants.ErrPaymentMethodInactive):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
 		default:
@@ -69,7 +84,7 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 		}
 	}
 
-	return response.Success(c, "settlement created", fiber.Map{"id": settlementID})
+	return c.Status(result.ResponseCode).Type("json").SendString(result.ResponseBody)
 }
 
 func (h *SettlementHandler) GetByGroupID(c fiber.Ctx) error {
@@ -131,9 +146,20 @@ func (h *SettlementHandler) GetDetail(c fiber.Ctx) error {
 		return request.HandleValidationError(c, err)
 	}
 
-	result, err := h.settlementService.GetDetail(c.Context(), params.SettlementID)
+	requesterUserID := security.GetUserID(c)
+
+	result, err := h.settlementService.GetDetail(c.Context(), requesterUserID, params.SettlementID)
 	if err != nil {
-		return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		switch {
+		case errors.Is(err, settlementConstants.ErrSettlementNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		}
 	}
 
 	return response.Success(c, "settlement detail fetched", result)

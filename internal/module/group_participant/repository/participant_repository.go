@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type GroupParticipantRepository struct {
@@ -61,6 +63,35 @@ func (r *GroupParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Contex
 	err := db.QueryRow(ctx, query, userID, groupID).Scan(&exists)
 
 	return exists, err
+}
+
+func (r *GroupParticipantRepository) FindByIDAndGroupID(ctx context.Context, db database.PgxExt, participantID string, groupID string) (*entity.GroupParticipant, error) {
+	query := `
+		SELECT
+			id,
+			group_id,
+			user_id,
+			participant_type
+		FROM group_participants
+		WHERE id = $1
+			AND group_id = $2
+	`
+
+	var participant entity.GroupParticipant
+	err := db.QueryRow(ctx, query, participantID, groupID).Scan(
+		&participant.ID,
+		&participant.GroupID,
+		&participant.UserID,
+		&participant.ParticipantType,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &participant, nil
 }
 
 func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.GroupParticipant, error) {
