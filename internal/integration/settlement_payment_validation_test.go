@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"testing"
@@ -24,12 +25,18 @@ import (
 	settlementServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/service"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spf13/viper"
 )
 
 var integrationPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	databaseURL := "postgres://mramdhani:@localhost:5432/kejarbill-test?sslmode=disable"
+	viper.SetConfigFile("../../.env")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("Warning: env file not found (%v). Using OS environment variables.", err)
+	}
+
+	databaseURL := viper.GetString("TEST_DATABASE_URL")
 	if databaseURL == "" {
 		fmt.Fprintln(os.Stderr, "TEST_DATABASE_URL is required for PostgreSQL integration tests")
 		os.Exit(1)
