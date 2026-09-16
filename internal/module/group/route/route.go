@@ -27,6 +27,7 @@ func GroupRoute(
 	group := api.Group("/groups", authMiddleware.Protected)
 
 	group.Post("/", groupHandler.Create)
+	group.Get("/", groupHandler.ListMine)
 	group.Get("/:group_id", groupHandler.GetDetailByID)
 
 	group.Get("/:group_id/activities", activityHandler.GetByGroupID)

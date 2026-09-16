@@ -110,6 +110,7 @@ func (s *PaymentMethodService) FindMyPaymentMethods(ctx context.Context, userID 
 			QRImageURL:          paymentMethod.QRImageURL,
 			Visibility:          paymentMethod.Visibility,
 			IsDefault:           paymentMethod.IsDefault,
+			IsHidden:            paymentMethod.Status == constants.StatusHidden,
 			IsVerified:          paymentMethod.IsVerified,
 		})
 	}

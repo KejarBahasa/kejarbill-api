@@ -32,6 +32,8 @@ func RegisterMiddleware(app *fiber.App, appEnv string) {
 		AllowMethods: []string{
 			"GET",
 			"POST",
+			"PATCH",
+			"DELETE",
 		},
 	}))
 
