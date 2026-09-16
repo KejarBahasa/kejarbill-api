@@ -131,3 +131,7 @@ func (s *GroupService) GetDetailByID(ctx context.Context, requesterUserID string
 
 	return group, nil
 }
+
+func (s *GroupService) ListUserGroups(ctx context.Context, userID string) ([]groupEntity.GroupDetail, error) {
+	return s.groupRepo.FindDetailsByMember(ctx, s.db, userID)
+}

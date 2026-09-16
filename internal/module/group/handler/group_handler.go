@@ -69,3 +69,29 @@ func (h *GroupHandler) GetDetailByID(c fiber.Ctx) error {
 
 	return response.Success(c, "group detail fetched", result)
 }
+
+func (h *GroupHandler) ListMine(c fiber.Ctx) error {
+	userID := security.GetUserID(c)
+
+	groups, err := h.groupService.ListUserGroups(c.Context(), userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	result := make([]dto.GroupDetailResponse, 0, len(groups))
+	for _, group := range groups {
+		result = append(result, dto.GroupDetailResponse{
+			ID:                group.ID,
+			Name:              group.Name,
+			Description:       group.Description,
+			TotalMembers:      group.TotalMembers,
+			TotalParticipants: group.TotalParticipants,
+			TotalExpenses:     group.TotalExpenses,
+			CreatedAt:         group.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	return response.Success(c, "groups fetched", fiber.Map{
+		"groups": result,
+	})
+}

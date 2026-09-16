@@ -9,5 +9,6 @@ type PaymentMethodResponse struct {
 	QRImageURL          *string `json:"qr_image_url,omitempty"`
 	Visibility          string  `json:"visibility"`
 	IsDefault           bool    `json:"is_default"`
+	IsHidden            bool    `json:"is_hidden"`
 	IsVerified          bool    `json:"is_verified"`
 }

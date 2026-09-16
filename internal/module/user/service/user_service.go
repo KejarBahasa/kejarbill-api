@@ -35,3 +35,21 @@ func (s *UserService) Me(ctx context.Context, userID string) (*dto.MeResponse, e
 		CreatedAt: user.CreatedAt.Format(time.RFC3339),
 	}, nil
 }
+
+func (s *UserService) Search(ctx context.Context, requesterUserID string, keyword string) ([]dto.UserSearchResult, error) {
+	users, err := s.userRepo.Search(ctx, keyword, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]dto.UserSearchResult, 0, len(users))
+	for _, user := range users {
+		result = append(result, dto.UserSearchResult{
+			ID:       user.ID,
+			Name:     user.Name,
+			Username: user.Username,
+		})
+	}
+
+	return result, nil
+}

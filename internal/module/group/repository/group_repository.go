@@ -48,32 +48,35 @@ func (r *GroupRepository) Create(ctx context.Context, db database.PgxExt, group 
 	return groupID, err
 }
 
+const groupDetailColumns = `
+	g.id,
+	g.name,
+	g.description,
+	(
+		SELECT COUNT(*)
+		FROM group_members gm
+		WHERE
+			gm.group_id = g.id
+			AND gm.status = 'active'
+	),
+	(
+		SELECT COUNT(*)
+		FROM group_participants gp
+		WHERE gp.group_id = g.id
+	),
+	(
+		SELECT COUNT(*)
+		FROM expenses e
+		WHERE
+			e.group_id = g.id
+			AND e.deleted_at IS NULL
+	),
+	g.created_at
+`
+
 func (r *GroupRepository) FindDetailByID(ctx context.Context, db database.PgxExt, groupID string) (*entity.GroupDetail, error) {
 	query := `
-		SELECT
-			g.id,
-			g.name,
-			g.description,
-			(
-				SELECT COUNT(*)
-				FROM group_members gm
-				WHERE
-					gm.group_id = g.id
-					AND gm.status = 'active'
-			),
-			(
-				SELECT COUNT(*)
-				FROM group_participants gp
-				WHERE gp.group_id = g.id
-			),
-			(
-				SELECT COUNT(*)
-				FROM expenses e
-				WHERE
-					e.group_id = g.id
-					AND e.deleted_at IS NULL
-			),
-			g.created_at
+		SELECT ` + groupDetailColumns + `
 		FROM groups g
 		WHERE g.id = $1
 	`
@@ -93,4 +96,44 @@ func (r *GroupRepository) FindDetailByID(ctx context.Context, db database.PgxExt
 	}
 
 	return &group, nil
+}
+
+func (r *GroupRepository) FindDetailsByMember(ctx context.Context, db database.PgxExt, userID string) ([]entity.GroupDetail, error) {
+	query := `
+		SELECT ` + groupDetailColumns + `
+		FROM groups g
+		JOIN group_members gm
+			ON gm.group_id = g.id
+			AND gm.user_id = $1
+			AND gm.status = 'active'
+		WHERE g.deleted_at IS NULL
+		ORDER BY g.created_at DESC
+	`
+
+	rows, err := db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	groups := make([]entity.GroupDetail, 0)
+	for rows.Next() {
+		var group entity.GroupDetail
+		err := rows.Scan(
+			&group.ID,
+			&group.Name,
+			&group.Description,
+			&group.TotalMembers,
+			&group.TotalParticipants,
+			&group.TotalExpenses,
+			&group.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		groups = append(groups, group)
+	}
+
+	return groups, rows.Err()
 }

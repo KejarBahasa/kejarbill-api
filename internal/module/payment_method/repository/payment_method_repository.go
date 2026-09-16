@@ -83,11 +83,11 @@ func (r *PaymentMethodRepository) FindByUserID(ctx context.Context, db database.
 		FROM payment_methods
 		WHERE user_id = $1
 			AND deleted_at IS NULL
-			AND status = $2
-		ORDER BY is_default DESC, created_at ASC
+			AND status <> 'deleted'
+		ORDER BY (status = 'hidden') ASC, is_default DESC, created_at ASC
 	`
 
-	rows, err := db.Query(ctx, query, userID, "active")
+	rows, err := db.Query(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
