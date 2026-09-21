@@ -78,6 +78,10 @@ func (s *ExpenseService) CreateEqualExpense(ctx context.Context, userID string, 
 		return "", err
 	}
 
+	if req.TotalAmount%int64(len(req.ParticipantIDs)) != 0 {
+		return "", expenseConstants.ErrEqualAmountNotDivisible
+	}
+
 	shareAmount := req.TotalAmount / int64(len(req.ParticipantIDs))
 
 	participants := make([]entity.CreateExpenseParticipantPayload, 0, len(req.ParticipantIDs))
