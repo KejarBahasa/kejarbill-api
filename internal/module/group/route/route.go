@@ -37,6 +37,7 @@ func GroupRoute(
 
 	group.Get("/:group_id/participants", groupParticipantHandler.GetByGroupID)
 	group.Post("/:group_id/participants/guests", groupParticipantHandler.CreateGuestParticipants)
+	group.Patch("/:group_id/participants/:participant_id/claim", groupParticipantHandler.ClaimGuest)
 
 	group.Get("/:group_id/balances", balanceHandler.GetGroupBalances)
 

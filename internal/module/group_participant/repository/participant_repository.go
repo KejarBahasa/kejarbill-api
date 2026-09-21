@@ -65,6 +65,27 @@ func (r *GroupParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Contex
 	return exists, err
 }
 
+func (r *GroupParticipantRepository) ClaimGuest(ctx context.Context, db database.PgxExt, participantID string, groupID string, userID string, displayName string) (int64, error) {
+	query := `
+		UPDATE group_participants
+		SET
+			user_id = $3,
+			participant_type = 'registered',
+			display_name = $4,
+			claimed_at = NOW(),
+			updated_at = NOW()
+		WHERE
+			id = $1
+			AND group_id = $2
+			AND participant_type = 'guest'
+			AND user_id IS NULL
+	`
+
+	tag, err := db.Exec(ctx, query, participantID, groupID, userID, displayName)
+
+	return tag.RowsAffected(), err
+}
+
 func (r *GroupParticipantRepository) FindByIDAndGroupID(ctx context.Context, db database.PgxExt, participantID string, groupID string) (*entity.GroupParticipant, error) {
 	query := `
 		SELECT
