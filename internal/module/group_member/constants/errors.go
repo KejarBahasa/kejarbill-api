@@ -8,4 +8,6 @@ var (
 	ErrUserNotFound = errors.New("one or more users not found")
 
 	ErrSomeUsersAlreadyMember = errors.New("one or more users already member")
+
+	ErrForbiddenGroupRole = errors.New("requires group owner or admin role")
 )

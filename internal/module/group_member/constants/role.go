@@ -7,3 +7,7 @@ const (
 
 	RoleOwner = "owner"
 )
+
+func CanManage(role string) bool {
+	return role == RoleOwner || role == RoleAdmin
+}

@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/service"
 
@@ -10,6 +13,13 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 )
+
+func paymentMethodErrorToHTTP(c fiber.Ctx, err error) error {
+	if errors.Is(err, constants.ErrPaymentMethodNotFound) {
+		return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+	}
+	return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+}
 
 type PaymentMethodHandler struct {
 	paymentMethodService *service.PaymentMethodService
@@ -65,7 +75,7 @@ func (h *PaymentMethodHandler) SetDefault(c fiber.Ctx) error {
 
 	err := h.paymentMethodService.SetDefault(c.Context(), userID, params.PaymentMethodID)
 	if err != nil {
-		return err
+		return paymentMethodErrorToHTTP(c, err)
 	}
 
 	return response.Success[any](c, "payment method updated", nil)
@@ -83,7 +93,7 @@ func (h *PaymentMethodHandler) Hide(c fiber.Ctx) error {
 	err := h.paymentMethodService.Hide(c.Context(), userID, params.PaymentMethodID)
 
 	if err != nil {
-		return err
+		return paymentMethodErrorToHTTP(c, err)
 	}
 
 	return response.Success[any](c, "payment method hidden", nil)
@@ -101,7 +111,7 @@ func (h *PaymentMethodHandler) Unhide(c fiber.Ctx) error {
 	err := h.paymentMethodService.Unhide(c.Context(), userID, params.PaymentMethodID)
 
 	if err != nil {
-		return err
+		return paymentMethodErrorToHTTP(c, err)
 	}
 
 	return response.Success[any](c, "payment method unhidden", nil)
@@ -122,7 +132,7 @@ func (h *PaymentMethodHandler) Update(c fiber.Ctx) error {
 
 	err := h.paymentMethodService.Update(c.Context(), userID, params.PaymentMethodID, &req)
 	if err != nil {
-		return err
+		return paymentMethodErrorToHTTP(c, err)
 	}
 
 	return response.Success[any](c, "payment method updated", nil)

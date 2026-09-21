@@ -1,6 +1,11 @@
 package handler
 
 import (
+	"errors"
+
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+	groupMemberConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/constants"
+	groupParticipantConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/constants"
 	groupParticipantDto "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/dto"
 	groupParticipantServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/service"
 
@@ -58,17 +63,43 @@ func (h *GroupParticipantHandler) GetByGroupID(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	result := make([]groupParticipantDto.ParticipantResponse, 0, len(participants))
-	for _, participant := range participants {
-		result = append(result, groupParticipantDto.ParticipantResponse{
-			ID:              participant.ID,
-			UserID:          participant.UserID,
-			ParticipantType: participant.ParticipantType,
-			DisplayName:     participant.DisplayName,
-		})
+	return response.Success(c, "participants fetched", fiber.Map{
+		"participants": participants,
+	})
+}
+
+func (h *GroupParticipantHandler) ClaimGuest(c fiber.Ctx) error {
+	var params groupParticipantDto.ClaimParticipantParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
 	}
 
-	return response.Success(c, "participants fetched", fiber.Map{
-		"participants": result,
-	})
+	var body groupParticipantDto.ClaimParticipantBody
+	if err := request.ValidateBody(c, &body); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	err := h.groupParticipantService.ClaimGuestParticipant(c.Context(), requesterUserID, params.GroupID, params.ParticipantID, body.UserID)
+	if err != nil {
+		return claimErrorToHTTP(err)
+	}
+
+	return response.Success[any](c, "participant claimed", nil)
+}
+
+func claimErrorToHTTP(err error) error {
+	code := fiber.StatusInternalServerError
+	switch {
+	case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess), errors.Is(err, groupMemberConstants.ErrForbiddenGroupRole):
+		code = fiber.StatusForbidden
+	case errors.Is(err, groupMemberConstants.ErrAlreadyMember), errors.Is(err, groupParticipantConstants.ErrParticipantNotClaimable):
+		code = fiber.StatusConflict
+	case errors.Is(err, expenseConstants.ErrUserNotFound), errors.Is(err, groupMemberConstants.ErrUserNotFound),
+		errors.Is(err, groupParticipantConstants.ErrParticipantNotFound), errors.Is(err, expenseConstants.ErrGroupNotFound):
+		code = fiber.StatusNotFound
+	}
+
+	return fiber.NewError(code, err.Error())
 }

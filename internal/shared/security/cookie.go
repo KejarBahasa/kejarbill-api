@@ -13,7 +13,7 @@ func SetRefreshCookie(c fiber.Ctx, refreshToken string) {
 		HTTPOnly: true,
 		Secure:   true,
 		SameSite: "Lax",
-		Path:     "/api/auth",
+		Path:     "/v1/auth",
 		Expires: time.Now().Add(
 			30 * 24 * time.Hour,
 		),
@@ -25,6 +25,10 @@ func ClearRefreshCookie(c fiber.Ctx) {
 		Name:     "refresh_token",
 		Value:    "",
 		HTTPOnly: true,
+		Secure:   true,
+		SameSite: "Lax",
+		Path:     "/v1/auth",
 		Expires:  time.Now().Add(-time.Hour),
+		MaxAge:   -1,
 	})
 }

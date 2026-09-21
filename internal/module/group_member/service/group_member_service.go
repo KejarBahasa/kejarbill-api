@@ -71,13 +71,15 @@ func (s *GroupMemberService) AddMember(ctx context.Context, requesterUserID stri
 		return expenseConstants.ErrGroupNotFound
 	}
 
-	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	requesterRole, err := s.groupMemberRepo.FindActiveMemberRole(ctx, s.db, groupID, requesterUserID)
 	if err != nil {
 		return err
 	}
-
-	if !hasAccess {
+	if requesterRole == "" {
 		return expenseConstants.ErrForbiddenGroupAccess
+	}
+	if !groupMemberConstants.CanManage(requesterRole) {
+		return groupMemberConstants.ErrForbiddenGroupRole
 	}
 
 	targetUserExists, err := s.userRepo.ExistsByID(ctx, s.db, req.UserID)

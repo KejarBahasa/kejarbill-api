@@ -19,6 +19,8 @@ import (
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 
+	paymentMethodConstants "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
+	paymentMethodDto "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/dto"
 	paymentMethodRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/repository"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
@@ -30,6 +32,7 @@ import (
 
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/response"
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -49,6 +52,8 @@ type SettlementService struct {
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 
 	paymentMethodRepo *paymentMethodRepoPkg.PaymentMethodRepository
+
+	encryption *security.Encryption
 }
 
 func NewSettlementService(
@@ -65,6 +70,8 @@ func NewSettlementService(
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
 
 	paymentMethodRepo *paymentMethodRepoPkg.PaymentMethodRepository,
+
+	encryption *security.Encryption,
 ) *SettlementService {
 
 	return &SettlementService{
@@ -81,6 +88,8 @@ func NewSettlementService(
 		groupParticipantRepo: groupParticipantRepo,
 
 		paymentMethodRepo: paymentMethodRepo,
+
+		encryption: encryption,
 	}
 }
 
@@ -250,6 +259,84 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 
 	if err != nil {
 		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetRecipientPaymentMethods lists the recipient's payment methods the requester is allowed
+// to see for a non-cash settlement: active, visible to group members, or debtor-only methods
+// shown only when the requester currently owes the recipient in this group.
+func (s *SettlementService) GetRecipientPaymentMethods(ctx context.Context, requesterUserID string, groupID string, recipientParticipantID string) ([]paymentMethodDto.PaymentMethodResponse, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	recipient, err := s.groupParticipantRepo.FindByIDAndGroupID(ctx, s.db, recipientParticipantID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if recipient == nil {
+		return nil, settlementConstants.ErrInvalidSettlementParticipants
+	}
+
+	result := make([]paymentMethodDto.PaymentMethodResponse, 0)
+	if recipient.UserID == nil {
+		return result, nil
+	}
+
+	includeDebtorOnly := false
+	requesterParticipant, err := s.groupParticipantRepo.FindByUserIDAndGroupID(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return nil, err
+	}
+	if requesterParticipant != nil {
+		outstanding, err := s.ledgerRepo.GetOutstandingBalance(ctx, s.db, groupID, requesterParticipant.ID, recipientParticipantID)
+		if err != nil {
+			return nil, err
+		}
+		includeDebtorOnly = outstanding > 0
+	}
+
+	methods, err := s.paymentMethodRepo.FindVisibleForRecipient(ctx, s.db, *recipient.UserID, includeDebtorOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, method := range methods {
+		var maskedAccountNumber *string
+		if len(method.AccountNumber) > 0 {
+			decrypted, err := s.encryption.Decrypt(method.AccountNumber)
+			if err != nil {
+				return nil, err
+			}
+			maskedAccountNumber = utils.Pointer(utils.MaskAccountNumber(decrypted))
+		}
+
+		result = append(result, paymentMethodDto.PaymentMethodResponse{
+			ID:                  method.ID,
+			MethodType:          method.MethodType,
+			ProviderName:        method.ProviderName,
+			AccountName:         method.AccountName,
+			MaskedAccountNumber: maskedAccountNumber,
+			QRImageURL:          method.QRImageURL,
+			Visibility:          method.Visibility,
+			IsDefault:           method.IsDefault,
+			IsHidden:            method.Status == paymentMethodConstants.StatusHidden,
+			IsVerified:          method.IsVerified,
+		})
 	}
 
 	return result, nil

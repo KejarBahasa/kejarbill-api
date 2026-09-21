@@ -1,6 +1,10 @@
 package handler
 
 import (
+	"errors"
+
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+	groupMemberConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/constants"
 	groupMemberDto "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/dto"
 
 	groupMemberServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/service"
@@ -11,6 +15,20 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 )
+
+func memberErrorToHTTP(err error) error {
+	code := fiber.StatusInternalServerError
+	switch {
+	case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess), errors.Is(err, groupMemberConstants.ErrForbiddenGroupRole):
+		code = fiber.StatusForbidden
+	case errors.Is(err, groupMemberConstants.ErrAlreadyMember), errors.Is(err, groupMemberConstants.ErrSomeUsersAlreadyMember):
+		code = fiber.StatusConflict
+	case errors.Is(err, expenseConstants.ErrUserNotFound), errors.Is(err, groupMemberConstants.ErrUserNotFound), errors.Is(err, expenseConstants.ErrGroupNotFound):
+		code = fiber.StatusNotFound
+	}
+
+	return fiber.NewError(code, err.Error())
+}
 
 type GroupMemberHandler struct {
 	groupMemberService *groupMemberServicePkg.GroupMemberService
@@ -40,7 +58,7 @@ func (h *GroupMemberHandler) AddMember(c fiber.Ctx) error {
 	err := h.groupMemberService.AddMember(c.Context(), requesterUserID, params.GroupID, &body)
 
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return memberErrorToHTTP(err)
 	}
 
 	return response.Success[any](c, "member added", nil)
@@ -62,7 +80,7 @@ func (h *GroupMemberHandler) AddMemberBulk(c fiber.Ctx) error {
 	err := h.groupMemberService.AddMembersBulk(c.Context(), userID, params.GroupID, &body)
 
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return memberErrorToHTTP(err)
 	}
 
 	return response.Success[any](c, "members added", nil)
