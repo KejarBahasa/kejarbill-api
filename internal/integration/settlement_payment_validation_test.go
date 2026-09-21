@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/KejarBahasa/kejarbill-api/internal/shared/security"
 
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
@@ -527,6 +530,7 @@ func newSettlementFixture(t *testing.T, recipientGuest bool) *settlementFixture 
 		groupMemberRepoPkg.NewGroupMemberRepository(),
 		groupParticipantRepoPkg.NewGroupParticipantRepository(),
 		paymentMethodRepoPkg.NewPaymentMethodRepository(),
+		newTestEncryption(t),
 	)
 
 	ctx := context.Background()
@@ -730,6 +734,15 @@ func mustExec(t *testing.T, ctx context.Context, query string, args ...any) {
 	if _, err := integrationPool.Exec(ctx, query, args...); err != nil {
 		t.Fatalf("fixture query failed: %v", err)
 	}
+}
+
+func newTestEncryption(t *testing.T) *security.Encryption {
+	t.Helper()
+	enc, err := security.NewEncryption(base64.StdEncoding.EncodeToString(make([]byte, 32)))
+	if err != nil {
+		t.Fatalf("newTestEncryption: %v", err)
+	}
+	return enc
 }
 
 func countRows(t *testing.T, ctx context.Context, query string, args ...any) int {

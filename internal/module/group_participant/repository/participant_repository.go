@@ -162,6 +162,36 @@ func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db datab
 	return participants, nil
 }
 
+func (r *GroupParticipantRepository) FindByUserIDAndGroupID(ctx context.Context, db database.PgxExt, groupID string, userID string) (*entity.GroupParticipant, error) {
+	query := `
+		SELECT
+			id,
+			group_id,
+			user_id,
+			participant_type
+		FROM group_participants
+		WHERE group_id = $1
+			AND user_id = $2
+		LIMIT 1
+	`
+
+	var participant entity.GroupParticipant
+	err := db.QueryRow(ctx, query, groupID, userID).Scan(
+		&participant.ID,
+		&participant.GroupID,
+		&participant.UserID,
+		&participant.ParticipantType,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &participant, nil
+}
+
 func (r *GroupParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.GroupParticipant) error {
 	query := `
 		INSERT INTO group_participants (

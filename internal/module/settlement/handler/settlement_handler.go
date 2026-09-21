@@ -164,3 +164,31 @@ func (h *SettlementHandler) GetDetail(c fiber.Ctx) error {
 
 	return response.Success(c, "settlement detail fetched", result)
 }
+
+func (h *SettlementHandler) GetRecipientPaymentMethods(c fiber.Ctx) error {
+	var params dto.RecipientPaymentMethodParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	methods, err := h.settlementService.GetRecipientPaymentMethods(c.Context(), requesterUserID, params.GroupID, params.ParticipantID)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrGroupNotFound),
+			errors.Is(err, settlementConstants.ErrInvalidSettlementParticipants):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		}
+	}
+
+	return response.Success(c, "payment methods fetched", fiber.Map{
+		"payment_methods": methods,
+	})
+}

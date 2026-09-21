@@ -122,6 +122,63 @@ func (r *PaymentMethodRepository) FindByUserID(ctx context.Context, db database.
 	return result, rows.Err()
 }
 
+func (r *PaymentMethodRepository) FindVisibleForRecipient(ctx context.Context, db database.PgxExt, ownerUserID string, includeDebtorOnly bool) ([]entity.PaymentMethod, error) {
+	query := `
+		SELECT
+			id,
+			user_id,
+			method_type,
+			provider_name,
+			account_name,
+			account_number,
+			qr_image_url,
+			visibility,
+			is_default,
+			is_verified,
+			status
+		FROM payment_methods
+		WHERE user_id = $1
+			AND deleted_at IS NULL
+			AND status = 'active'
+			AND (
+				visibility = 'group_members'
+				OR ($2 AND visibility = 'debtor_only')
+			)
+		ORDER BY is_default DESC, created_at ASC
+	`
+
+	rows, err := db.Query(ctx, query, ownerUserID, includeDebtorOnly)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]entity.PaymentMethod, 0)
+	for rows.Next() {
+		var item entity.PaymentMethod
+		err := rows.Scan(
+			&item.ID,
+			&item.UserID,
+			&item.MethodType,
+			&item.ProviderName,
+			&item.AccountName,
+			&item.AccountNumber,
+			&item.QRImageURL,
+			&item.Visibility,
+			&item.IsDefault,
+			&item.IsVerified,
+			&item.Status,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, item)
+	}
+
+	return result, rows.Err()
+}
+
 func (r *PaymentMethodRepository) ExistsByIDAndUserID(ctx context.Context, db database.PgxExt, userID string, paymentMethodID string) (bool, error) {
 	query := `
 		SELECT EXISTS (
