@@ -7,6 +7,8 @@ var (
 
 	ErrInvalidSettlementParticipants = errors.New("invalid settlement participants")
 
+	ErrSettlementSenderNotAllowed = errors.New("settlement sender not allowed")
+
 	ErrSettlementAmountExceeded = errors.New("settlement amount exceeded outstanding balance")
 
 	ErrInvalidSettlementPaymentMethod = errors.New("invalid payment method")

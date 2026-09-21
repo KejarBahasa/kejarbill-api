@@ -167,6 +167,10 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 			return settlementConstants.ErrInvalidSettlementParticipants
 		}
 
+		if err := s.validateSettlementSender(ctx, tx, userID, groupID, req.FromParticipantID); err != nil {
+			return err
+		}
+
 		toParticipant, err := s.groupParticipantRepo.FindByIDAndGroupID(ctx, tx, req.ToParticipantID, groupID)
 		if err != nil {
 			return err
