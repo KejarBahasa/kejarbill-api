@@ -135,6 +135,21 @@ func (r *ExpenseRepository) BulkCreateExpenseItems(ctx context.Context, db datab
 	return nil
 }
 
+func (r *ExpenseRepository) GetGroupExpenseTotals(ctx context.Context, db database.PgxExt, groupID string, payerParticipantID any) (groupTotal int64, payerTotal int64, err error) {
+	query := `
+		SELECT
+			COALESCE(SUM(total_amount), 0)::BIGINT,
+			COALESCE(SUM(CASE WHEN paid_by_participant_id = $2 THEN total_amount ELSE 0 END), 0)::BIGINT
+		FROM expenses
+		WHERE group_id = $1
+			AND deleted_at IS NULL
+	`
+
+	err = db.QueryRow(ctx, query, groupID, payerParticipantID).Scan(&groupTotal, &payerTotal)
+
+	return groupTotal, payerTotal, err
+}
+
 func (r *ExpenseRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {
 	query := `
 		SELECT COUNT(*)

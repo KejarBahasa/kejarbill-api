@@ -70,6 +70,22 @@ func (h *GroupHandler) GetDetailByID(c fiber.Ctx) error {
 	return response.Success(c, "group detail fetched", result)
 }
 
+func (h *GroupHandler) GetSummary(c fiber.Ctx) error {
+	var params dto.GroupIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	summary, err := h.groupService.GetSummary(c.Context(), requesterUserID, params.GroupID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success(c, "group summary fetched", summary)
+}
+
 func (h *GroupHandler) ListMine(c fiber.Ctx) error {
 	userID := security.GetUserID(c)
 

@@ -61,7 +61,8 @@ func (h *SettlementHandler) Create(c fiber.Ctx) error {
 		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
-		case errors.Is(err, settlementConstants.ErrInvalidSettlementParticipants):
+		case errors.Is(err, settlementConstants.ErrInvalidSettlementParticipants),
+			errors.Is(err, settlementConstants.ErrSettlementSenderNotAllowed):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
 		case errors.Is(err, settlementConstants.ErrSettlementAmountExceeded):
