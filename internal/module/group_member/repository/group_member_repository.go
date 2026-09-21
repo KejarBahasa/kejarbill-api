@@ -32,6 +32,32 @@ func (r *GroupMemberRepository) ExistsActiveMember(ctx context.Context, db datab
 	return exists, err
 }
 
+func (r *GroupMemberRepository) FindActiveMemberRolesByGroup(ctx context.Context, db database.PgxExt, groupID string) (map[string]string, error) {
+	query := `
+		SELECT user_id, role
+		FROM group_members
+		WHERE group_id = $1
+			AND status = 'active'
+	`
+
+	rows, err := db.Query(ctx, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	roles := make(map[string]string)
+	for rows.Next() {
+		var userID, role string
+		if err := rows.Scan(&userID, &role); err != nil {
+			return nil, err
+		}
+		roles[userID] = role
+	}
+
+	return roles, rows.Err()
+}
+
 func (r *GroupMemberRepository) FindActiveMemberUserIDs(ctx context.Context, db database.PgxExt, groupID string, userIDs []string) ([]string, error) {
 	query := `
 		SELECT user_id

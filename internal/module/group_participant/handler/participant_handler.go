@@ -58,17 +58,7 @@ func (h *GroupParticipantHandler) GetByGroupID(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	result := make([]groupParticipantDto.ParticipantResponse, 0, len(participants))
-	for _, participant := range participants {
-		result = append(result, groupParticipantDto.ParticipantResponse{
-			ID:              participant.ID,
-			UserID:          participant.UserID,
-			ParticipantType: participant.ParticipantType,
-			DisplayName:     participant.DisplayName,
-		})
-	}
-
 	return response.Success(c, "participants fetched", fiber.Map{
-		"participants": result,
+		"participants": participants,
 	})
 }

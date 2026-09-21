@@ -95,7 +95,7 @@ func (s *GroupParticipantService) CreateGuestParticipants(ctx context.Context, r
 	})
 }
 
-func (s *GroupParticipantService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]participantEntity.GroupParticipant, error) {
+func (s *GroupParticipantService) GetByGroupID(ctx context.Context, requesterUserID string, groupID string) ([]participantDto.ParticipantResponse, error) {
 	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
 	if err != nil {
 		return nil, err
@@ -117,5 +117,31 @@ func (s *GroupParticipantService) GetByGroupID(ctx context.Context, requesterUse
 		return nil, err
 	}
 
-	return participants, nil
+	roles, err := s.groupMemberRepo.FindActiveMemberRolesByGroup(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]participantDto.ParticipantResponse, 0, len(participants))
+	for _, participant := range participants {
+		var role *string
+		isSelf := false
+		if participant.UserID != nil {
+			if r, ok := roles[*participant.UserID]; ok {
+				role = &r
+			}
+			isSelf = *participant.UserID == requesterUserID
+		}
+
+		result = append(result, participantDto.ParticipantResponse{
+			ID:              participant.ID,
+			UserID:          participant.UserID,
+			ParticipantType: participant.ParticipantType,
+			DisplayName:     participant.DisplayName,
+			Role:            role,
+			IsSelf:          isSelf,
+		})
+	}
+
+	return result, nil
 }
