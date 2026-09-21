@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group_member/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type GroupMemberRepository struct {
@@ -30,6 +32,29 @@ func (r *GroupMemberRepository) ExistsActiveMember(ctx context.Context, db datab
 	err := db.QueryRow(ctx, query, groupID, userID).Scan(&exists)
 
 	return exists, err
+}
+
+func (r *GroupMemberRepository) FindActiveMemberRole(ctx context.Context, db database.PgxExt, groupID string, userID string) (string, error) {
+	query := `
+		SELECT role
+		FROM group_members
+		WHERE
+			group_id = $1
+			AND user_id = $2
+			AND status = 'active'
+		LIMIT 1
+	`
+
+	var role string
+	err := db.QueryRow(ctx, query, groupID, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return role, nil
 }
 
 func (r *GroupMemberRepository) FindActiveMemberRolesByGroup(ctx context.Context, db database.PgxExt, groupID string) (map[string]string, error) {
