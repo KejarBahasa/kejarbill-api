@@ -118,7 +118,7 @@ func BuildDependency() (*Dependency, error) {
 
 	authService := authServicePkg.NewAuthService(authRepo, pasetoMaker, sessionStore, cfg.Auth.AccessTokenDuration, cfg.Auth.RefreshTokenDuration)
 	userService := userServicePkg.NewUserService(userRepo)
-	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
+	groupService := groupServicePkg.NewGroupService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo, expenseRepo, ledgerRepo)
 	groupParticipantService := groupParticipantServicePkg.NewGroupParticipantService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	groupMemberService := groupMemberServicePkg.NewGroupMemberService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()

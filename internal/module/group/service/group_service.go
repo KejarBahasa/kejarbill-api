@@ -4,9 +4,13 @@ import (
 	"context"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+	expenseRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/repository"
 
+	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 	groupEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group/entity"
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+
+	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 
 	groupMemberConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/constants"
 	groupMemberEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/entity"
@@ -34,6 +38,10 @@ type GroupService struct {
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
 
 	userRepo *userRepoPkg.UserRepository
+
+	expenseRepo *expenseRepoPkg.ExpenseRepository
+
+	ledgerRepo *ledgerRepoPkg.LedgerRepository
 }
 
 func NewGroupService(
@@ -46,6 +54,10 @@ func NewGroupService(
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
 
 	userRepo *userRepoPkg.UserRepository,
+
+	expenseRepo *expenseRepoPkg.ExpenseRepository,
+
+	ledgerRepo *ledgerRepoPkg.LedgerRepository,
 ) *GroupService {
 
 	return &GroupService{
@@ -58,6 +70,10 @@ func NewGroupService(
 		groupParticipantRepo: groupParticipantRepo,
 
 		userRepo: userRepo,
+
+		expenseRepo: expenseRepo,
+
+		ledgerRepo: ledgerRepo,
 	}
 }
 
@@ -134,4 +150,58 @@ func (s *GroupService) GetDetailByID(ctx context.Context, requesterUserID string
 
 func (s *GroupService) ListUserGroups(ctx context.Context, userID string) ([]groupEntity.GroupDetail, error) {
 	return s.groupRepo.FindDetailsByMember(ctx, s.db, userID)
+}
+
+func (s *GroupService) GetSummary(ctx context.Context, userID string, groupID string) (*groupDto.GroupSummaryResponse, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	myParticipant, err := s.groupParticipantRepo.FindByUserIDAndGroupID(ctx, s.db, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	summary := &groupDto.GroupSummaryResponse{}
+
+	var payerParticipantID any
+	if myParticipant != nil {
+		payerParticipantID = myParticipant.ID
+	}
+
+	groupTotal, myTotalPaid, err := s.expenseRepo.GetGroupExpenseTotals(ctx, s.db, groupID, payerParticipantID)
+	if err != nil {
+		return nil, err
+	}
+	summary.GroupTotal = groupTotal
+	summary.MyTotalPaid = myTotalPaid
+
+	if myParticipant != nil {
+		balances, err := s.ledgerRepo.GetGroupBalances(ctx, s.db, groupID)
+		if err != nil {
+			return nil, err
+		}
+		for _, balance := range balances {
+			switch {
+			case balance.FromParticipant.ID == myParticipant.ID:
+				summary.MyTotalDebt += balance.Amount
+			case balance.ToParticipant.ID == myParticipant.ID:
+				summary.MyTotalCredit += balance.Amount
+			}
+		}
+	}
+
+	return summary, nil
 }
