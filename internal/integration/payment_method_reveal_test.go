@@ -9,6 +9,7 @@ import (
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	paymentMethodConstants "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
+	paymentMethodDto "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/dto"
 	paymentMethodRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/repository"
 	paymentMethodServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/service"
 	settlementHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/handler"
@@ -151,5 +152,35 @@ func TestPaymentMethodListDoesNotExposePlaintext(t *testing.T) {
 		if method.MaskedAccountNumber != nil && *method.MaskedAccountNumber == "1234567890" {
 			t.Fatal("list response exposed plaintext account number")
 		}
+	}
+}
+
+func TestPaymentMethodUpdatePreservesOptionalAccountNumber(t *testing.T) {
+	f := newRecipientMethodFixture(t)
+	methodID := f.addEncryptedMethod(t, paymentMethodConstants.VisibilityGroupMember, "1234567890")
+	service := paymentMethodServicePkg.NewPaymentMethodService(
+		integrationPool,
+		newTestEncryption(t),
+		paymentMethodRepoPkg.NewPaymentMethodRepository(),
+	)
+
+	err := service.Update(context.Background(), f.recipientID, methodID, &paymentMethodDto.UpdatePaymentMethodRequest{
+		ProviderName: "Updated Bank",
+		Visibility:   paymentMethodConstants.VisibilityGroupMember,
+	})
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	var ciphertext []byte
+	if err := integrationPool.QueryRow(context.Background(), `SELECT account_number FROM payment_methods WHERE id = $1`, methodID).Scan(&ciphertext); err != nil {
+		t.Fatalf("query account number: %v", err)
+	}
+	plaintext, err := newTestEncryption(t).Decrypt(ciphertext)
+	if err != nil {
+		t.Fatalf("decrypt preserved account number: %v", err)
+	}
+	if plaintext != "1234567890" {
+		t.Fatalf("account number after optional update = %q, want original value", plaintext)
 	}
 }
