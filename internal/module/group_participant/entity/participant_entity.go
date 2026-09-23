@@ -6,6 +6,7 @@ type GroupParticipant struct {
 	ID              string
 	GroupID         string
 	UserID          *string
+	Username        *string
 	DisplayName     string
 	PhoneNumber     string
 	ParticipantType string

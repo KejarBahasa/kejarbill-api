@@ -66,9 +66,6 @@ func (h *ExpenseHandler) CreateEqualExpense(c fiber.Ctx) error {
 		case errors.Is(err, expenseConstants.ErrInvalidExpenseDate):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
-		case errors.Is(err, expenseConstants.ErrEqualAmountNotDivisible):
-			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
-
 		default:
 			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
 		}

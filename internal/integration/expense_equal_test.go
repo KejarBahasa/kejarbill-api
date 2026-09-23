@@ -24,6 +24,7 @@ type equalExpenseFixture struct {
 	ownerID          string
 	payerParticipant string
 	guestParticipant string
+	thirdParticipant string
 }
 
 func newEqualExpenseFixture(t *testing.T) *equalExpenseFixture {
@@ -43,6 +44,7 @@ func newEqualExpenseFixture(t *testing.T) *equalExpenseFixture {
 		ownerID:          uuid.NewString(),
 		payerParticipant: uuid.NewString(),
 		guestParticipant: uuid.NewString(),
+		thirdParticipant: uuid.NewString(),
 	}
 
 	ctx := context.Background()
@@ -64,6 +66,10 @@ func newEqualExpenseFixture(t *testing.T) *equalExpenseFixture {
 		INSERT INTO group_participants (id, group_id, user_id, display_name, participant_type, created_by)
 		VALUES ($1, $2, NULL, 'Guest', 'guest', $3)
 	`, f.guestParticipant, f.groupID, f.ownerID)
+	mustExec(t, ctx, `
+		INSERT INTO group_participants (id, group_id, user_id, display_name, participant_type, created_by)
+		VALUES ($1, $2, NULL, 'Guest Two', 'guest', $3)
+	`, f.thirdParticipant, f.groupID, f.ownerID)
 
 	t.Cleanup(func() { f.cleanup(t) })
 	return f
@@ -95,12 +101,16 @@ func (f *equalExpenseFixture) cleanup(t *testing.T) {
 }
 
 func (f *equalExpenseFixture) equalReq(totalAmount int64) *expenseDto.CreateExpenseEqualRequest {
+	return f.equalReqWithParticipants(totalAmount, []string{f.payerParticipant, f.guestParticipant})
+}
+
+func (f *equalExpenseFixture) equalReqWithParticipants(totalAmount int64, participantIDs []string) *expenseDto.CreateExpenseEqualRequest {
 	return &expenseDto.CreateExpenseEqualRequest{
 		GroupID:            f.groupID,
 		Title:              "Equal test",
 		Currency:           "IDR",
 		PayerParticipantID: f.payerParticipant,
-		ParticipantIDs:     []string{f.payerParticipant, f.guestParticipant},
+		ParticipantIDs:     participantIDs,
 		TotalAmount:        totalAmount,
 		ExpenseDate:        "2026-08-13T00:00:00Z",
 	}
@@ -111,15 +121,40 @@ func (f *equalExpenseFixture) expenseCount(t *testing.T) int {
 	return countRows(t, context.Background(), `SELECT COUNT(*) FROM expenses WHERE group_id = $1`, f.groupID)
 }
 
-func TestEqualExpenseRejectsNonDivisible(t *testing.T) {
+func TestEqualExpenseDistributesRemainderInRequestOrder(t *testing.T) {
 	fixture := newEqualExpenseFixture(t)
 
-	_, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, fixture.equalReq(101))
-	if !errors.Is(err, expenseConstants.ErrEqualAmountNotDivisible) {
-		t.Fatalf("CreateEqualExpense() error = %v, want %v", err, expenseConstants.ErrEqualAmountNotDivisible)
+	expenseID, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, fixture.equalReq(101))
+	if err != nil {
+		t.Fatalf("CreateEqualExpense() error = %v", err)
 	}
-	if n := fixture.expenseCount(t); n != 0 {
-		t.Fatalf("expense count = %d, want 0", n)
+
+	var firstShare, secondShare, totalShare int64
+	if err := integrationPool.QueryRow(context.Background(), `
+		SELECT
+			SUM(CASE WHEN ep.participant_id = $2 THEN ep.share_amount ELSE 0 END),
+			SUM(CASE WHEN ep.participant_id = $3 THEN ep.share_amount ELSE 0 END),
+			SUM(ep.share_amount)
+		FROM expense_participants ep
+		JOIN expenses e ON e.id = ep.expense_id
+		WHERE e.group_id = $1
+	`, fixture.groupID, fixture.payerParticipant, fixture.guestParticipant).Scan(&firstShare, &secondShare, &totalShare); err != nil {
+		t.Fatalf("query shares: %v", err)
+	}
+	if firstShare != 51 || secondShare != 50 || totalShare != 101 {
+		t.Fatalf("shares = %d, %d, total %d; want 51, 50, 101", firstShare, secondShare, totalShare)
+	}
+
+	detail, err := fixture.service.GetDetailByID(context.Background(), fixture.ownerID, expenseID)
+	if err != nil {
+		t.Fatalf("GetDetailByID() error = %v", err)
+	}
+	sharesByParticipant := make(map[string]int64, len(detail.Participants))
+	for _, participant := range detail.Participants {
+		sharesByParticipant[participant.ParticipantID] = participant.ShareAmount
+	}
+	if len(detail.Participants) != 2 || sharesByParticipant[fixture.payerParticipant] != 51 || sharesByParticipant[fixture.guestParticipant] != 50 {
+		t.Fatalf("detail participants = %+v, want shares 51 and 50", detail.Participants)
 	}
 }
 
@@ -143,5 +178,85 @@ func TestEqualExpenseAcceptsDivisible(t *testing.T) {
 	}
 	if share != 50 {
 		t.Fatalf("guest share = %d, want 50", share)
+	}
+}
+
+func TestEqualExpenseDistributesRemainderAcrossThreeParticipants(t *testing.T) {
+	fixture := newEqualExpenseFixture(t)
+	req := fixture.equalReqWithParticipants(100_001, []string{fixture.payerParticipant, fixture.guestParticipant, fixture.thirdParticipant})
+	if _, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, req); err != nil {
+		t.Fatalf("CreateEqualExpense() error = %v", err)
+	}
+
+	var firstShare, secondShare, thirdShare, totalShare int64
+	if err := integrationPool.QueryRow(context.Background(), `
+		SELECT
+			SUM(CASE WHEN ep.participant_id = $2 THEN ep.share_amount ELSE 0 END),
+			SUM(CASE WHEN ep.participant_id = $3 THEN ep.share_amount ELSE 0 END),
+			SUM(CASE WHEN ep.participant_id = $4 THEN ep.share_amount ELSE 0 END),
+			SUM(ep.share_amount)
+		FROM expense_participants ep
+		JOIN expenses e ON e.id = ep.expense_id
+		WHERE e.group_id = $1
+	`, fixture.groupID, fixture.payerParticipant, fixture.guestParticipant, fixture.thirdParticipant).Scan(&firstShare, &secondShare, &thirdShare, &totalShare); err != nil {
+		t.Fatalf("query shares: %v", err)
+	}
+	if firstShare != 33_334 || secondShare != 33_334 || thirdShare != 33_333 || totalShare != 100_001 {
+		t.Fatalf("shares = %d, %d, %d, total %d; want 33334, 33334, 33333, 100001", firstShare, secondShare, thirdShare, totalShare)
+	}
+}
+
+func TestEqualExpenseDistributesSingleRemainderAcrossThreeParticipants(t *testing.T) {
+	fixture := newEqualExpenseFixture(t)
+	req := fixture.equalReqWithParticipants(100_000, []string{fixture.payerParticipant, fixture.guestParticipant, fixture.thirdParticipant})
+	if _, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, req); err != nil {
+		t.Fatalf("CreateEqualExpense() error = %v", err)
+	}
+
+	var firstShare, secondShare, thirdShare int64
+	if err := integrationPool.QueryRow(context.Background(), `
+		SELECT
+			SUM(CASE WHEN ep.participant_id = $2 THEN ep.share_amount ELSE 0 END),
+			SUM(CASE WHEN ep.participant_id = $3 THEN ep.share_amount ELSE 0 END),
+			SUM(CASE WHEN ep.participant_id = $4 THEN ep.share_amount ELSE 0 END)
+		FROM expense_participants ep
+		JOIN expenses e ON e.id = ep.expense_id
+		WHERE e.group_id = $1
+	`, fixture.groupID, fixture.payerParticipant, fixture.guestParticipant, fixture.thirdParticipant).Scan(&firstShare, &secondShare, &thirdShare); err != nil {
+		t.Fatalf("query shares: %v", err)
+	}
+	if firstShare != 33_334 || secondShare != 33_333 || thirdShare != 33_333 {
+		t.Fatalf("shares = %d, %d, %d; want 33334, 33333, 33333", firstShare, secondShare, thirdShare)
+	}
+}
+
+func TestEqualExpenseRejectsDuplicateParticipants(t *testing.T) {
+	fixture := newEqualExpenseFixture(t)
+	req := fixture.equalReqWithParticipants(100_000, []string{fixture.payerParticipant, fixture.guestParticipant, fixture.guestParticipant})
+
+	_, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, req)
+	if !errors.Is(err, expenseConstants.ErrDuplicateParticipants) {
+		t.Fatalf("error = %v, want %v", err, expenseConstants.ErrDuplicateParticipants)
+	}
+}
+
+func TestEqualExpenseRejectsParticipantFromAnotherGroup(t *testing.T) {
+	fixture := newEqualExpenseFixture(t)
+	foreignGroupID := uuid.NewString()
+	foreignParticipantID := uuid.NewString()
+	mustExec(t, context.Background(), `INSERT INTO groups (id, name, created_by) VALUES ($1, 'Foreign Group', $2)`, foreignGroupID, fixture.ownerID)
+	mustExec(t, context.Background(), `
+		INSERT INTO group_participants (id, group_id, user_id, display_name, participant_type, created_by)
+		VALUES ($1, $2, NULL, 'Foreign', 'guest', $3)
+	`, foreignParticipantID, foreignGroupID, fixture.ownerID)
+	t.Cleanup(func() {
+		mustExec(t, context.Background(), `DELETE FROM group_participants WHERE id = $1`, foreignParticipantID)
+		mustExec(t, context.Background(), `DELETE FROM groups WHERE id = $1`, foreignGroupID)
+	})
+
+	req := fixture.equalReqWithParticipants(100_000, []string{fixture.payerParticipant, foreignParticipantID})
+	_, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, req)
+	if !errors.Is(err, expenseConstants.ErrParticipantNotInGroup) {
+		t.Fatalf("error = %v, want %v", err, expenseConstants.ErrParticipantNotInGroup)
 	}
 }

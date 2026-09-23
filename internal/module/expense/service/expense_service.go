@@ -78,15 +78,17 @@ func (s *ExpenseService) CreateEqualExpense(ctx context.Context, userID string, 
 		return "", err
 	}
 
-	if req.TotalAmount%int64(len(req.ParticipantIDs)) != 0 {
-		return "", expenseConstants.ErrEqualAmountNotDivisible
-	}
-
-	shareAmount := req.TotalAmount / int64(len(req.ParticipantIDs))
+	baseShare := req.TotalAmount / int64(len(req.ParticipantIDs))
+	remainder := req.TotalAmount % int64(len(req.ParticipantIDs))
 
 	participants := make([]entity.CreateExpenseParticipantPayload, 0, len(req.ParticipantIDs))
 
-	for _, participantID := range req.ParticipantIDs {
+	for index, participantID := range req.ParticipantIDs {
+		shareAmount := baseShare
+		if int64(index) < remainder {
+			shareAmount++
+		}
+
 		participants = append(participants, entity.CreateExpenseParticipantPayload{
 			ParticipantID: participantID,
 			ShareAmount:   shareAmount,
