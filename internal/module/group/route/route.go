@@ -30,6 +30,7 @@ func GroupRoute(
 	group.Get("/", groupHandler.ListMine)
 	group.Get("/:group_id", groupHandler.GetDetailByID)
 	group.Get("/:group_id/summary", groupHandler.GetSummary)
+	group.Get("/:group_id/my-debts", groupHandler.GetMyDebts)
 
 	group.Get("/:group_id/activities", activityHandler.GetByGroupID)
 

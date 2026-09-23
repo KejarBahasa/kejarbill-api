@@ -150,6 +150,99 @@ func (r *ExpenseRepository) GetGroupExpenseTotals(ctx context.Context, db databa
 	return groupTotal, payerTotal, err
 }
 
+func (r *ExpenseRepository) FindMyDebtExpenses(ctx context.Context, db database.PgxExt, groupID string, participantID string, limit int) ([]entity.MyDebtExpense, error) {
+	query := `
+		WITH pair_balances AS (
+			SELECT
+				CASE
+					WHEN account_ledger.from_participant_id = $2 THEN account_ledger.to_participant_id
+					ELSE account_ledger.from_participant_id
+				END AS counterparty_id,
+				SUM(
+					CASE
+						WHEN account_ledger.from_participant_id = $2 THEN account_ledger.amount
+						ELSE -account_ledger.amount
+					END
+				)::BIGINT AS net_amount
+			FROM account_ledger
+			LEFT JOIN expenses ledger_expense
+				ON ledger_expense.id = account_ledger.source_id
+				AND account_ledger.source_type = 'expense'
+			LEFT JOIN settlements ledger_settlement
+				ON ledger_settlement.id = account_ledger.source_id
+				AND account_ledger.source_type = 'settlement'
+			WHERE account_ledger.group_id = $1
+				AND (
+					account_ledger.from_participant_id = $2
+					OR account_ledger.to_participant_id = $2
+				)
+				AND (
+					(account_ledger.source_type = 'expense'
+						AND ledger_expense.status = 'active'
+						AND ledger_expense.deleted_at IS NULL)
+					OR (account_ledger.source_type = 'settlement'
+						AND ledger_settlement.status = 'completed')
+					OR account_ledger.source_type = 'adjustment'
+				)
+			GROUP BY counterparty_id
+		)
+		SELECT
+			e.id,
+			e.title,
+			e.expense_date,
+			e.created_at,
+			e.paid_by_participant_id,
+			payer.display_name,
+			ep.share_amount,
+			pb.net_amount
+		FROM expenses e
+		INNER JOIN expense_participants ep
+			ON ep.expense_id = e.id
+		INNER JOIN group_participants payer
+			ON payer.id = e.paid_by_participant_id
+		INNER JOIN pair_balances pb
+			ON pb.counterparty_id = e.paid_by_participant_id
+		WHERE e.group_id = $1
+			AND e.status = 'active'
+			AND e.deleted_at IS NULL
+			AND ep.participant_id = $2
+			AND e.paid_by_participant_id <> $2
+			AND pb.net_amount > 0
+		ORDER BY
+			e.paid_by_participant_id,
+			e.expense_date ASC,
+			e.created_at ASC,
+			e.id ASC
+		LIMIT $3
+	`
+
+	rows, err := db.Query(ctx, query, groupID, participantID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	debts := make([]entity.MyDebtExpense, 0)
+	for rows.Next() {
+		var debt entity.MyDebtExpense
+		if err := rows.Scan(
+			&debt.ID,
+			&debt.Title,
+			&debt.ExpenseDate,
+			&debt.CreatedAt,
+			&debt.ToParticipantID,
+			&debt.ToDisplayName,
+			&debt.ShareAmount,
+			&debt.NetPairAmount,
+		); err != nil {
+			return nil, err
+		}
+		debts = append(debts, debt)
+	}
+
+	return debts, rows.Err()
+}
+
 func (r *ExpenseRepository) CountByGroupID(ctx context.Context, db database.PgxExt, groupID string) (int64, error) {
 	query := `
 		SELECT COUNT(*)
