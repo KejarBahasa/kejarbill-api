@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"sort"
+	"time"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
+	expenseEntity "github.com/KejarBahasa/kejarbill-api/internal/module/expense/entity"
 	expenseRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/repository"
 
+	groupConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group/constants"
 	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 	groupEntity "github.com/KejarBahasa/kejarbill-api/internal/module/group/entity"
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
@@ -204,4 +208,110 @@ func (s *GroupService) GetSummary(ctx context.Context, userID string, groupID st
 	}
 
 	return summary, nil
+}
+
+func (s *GroupService) GetMyDebts(ctx context.Context, userID string, groupID string) (*groupDto.MyDebtsResponse, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !groupExists {
+		return nil, expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	participant, err := s.groupParticipantRepo.FindByUserIDAndGroupID(ctx, s.db, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if participant == nil {
+		return &groupDto.MyDebtsResponse{Debts: []groupDto.MyDebtResponse{}}, nil
+	}
+
+	// The endpoint is intentionally non-paginated, but the query is capped to avoid
+	// loading an unbounded number of expense rows for a single request.
+	const maxDebtExpenseRows = 10000
+	expenses, err := s.expenseRepo.FindMyDebtExpenses(ctx, s.db, groupID, participant.ID, maxDebtExpenseRows)
+	if err != nil {
+		return nil, err
+	}
+
+	expensesByParticipant := make(map[string][]expenseEntity.MyDebtExpense)
+	for _, expense := range expenses {
+		expensesByParticipant[expense.ToParticipantID] = append(expensesByParticipant[expense.ToParticipantID], expense)
+	}
+
+	result := &groupDto.MyDebtsResponse{Debts: make([]groupDto.MyDebtResponse, 0, len(expensesByParticipant))}
+	for _, debtExpenses := range expensesByParticipant {
+		debt := groupDto.MyDebtResponse{
+			ToParticipant: groupDto.DebtParticipantResponse{
+				ID:          debtExpenses[0].ToParticipantID,
+				DisplayName: debtExpenses[0].ToDisplayName,
+			},
+			Expenses: make([]groupDto.MyDebtExpenseResponse, 0, len(debtExpenses)),
+		}
+
+		for _, expense := range debtExpenses {
+			debt.TotalAmount += expense.ShareAmount
+		}
+
+		remainingReduction := debt.TotalAmount - debtExpenses[0].NetPairAmount
+		if remainingReduction < 0 {
+			remainingReduction = 0
+		}
+
+		for _, expense := range debtExpenses {
+			paidAmount := expense.ShareAmount
+			if remainingReduction < paidAmount {
+				paidAmount = remainingReduction
+			}
+			remainingReduction -= paidAmount
+
+			remainingAmount := expense.ShareAmount - paidAmount
+			status := groupConstants.DebtStatusPaid
+			if paidAmount == 0 {
+				status = groupConstants.DebtStatusUnpaid
+			} else if remainingAmount > 0 {
+				status = groupConstants.DebtStatusPartial
+			}
+
+			debt.PaidAmount += paidAmount
+			debt.RemainingAmount += remainingAmount
+			debt.Expenses = append(debt.Expenses, groupDto.MyDebtExpenseResponse{
+				ExpenseID:       expense.ID,
+				Title:           expense.Title,
+				ExpenseDate:     expense.ExpenseDate.Format(time.RFC3339),
+				Amount:          expense.ShareAmount,
+				PaidAmount:      paidAmount,
+				RemainingAmount: remainingAmount,
+				Status:          status,
+			})
+		}
+
+		if debt.RemainingAmount == 0 {
+			continue
+		}
+		debt.Status = groupConstants.DebtStatusPartial
+		if debt.PaidAmount == 0 {
+			debt.Status = groupConstants.DebtStatusUnpaid
+		}
+
+		result.TotalAmount += debt.TotalAmount
+		result.PaidAmount += debt.PaidAmount
+		result.RemainingAmount += debt.RemainingAmount
+		result.Debts = append(result.Debts, debt)
+	}
+
+	sort.Slice(result.Debts, func(i, j int) bool {
+		return result.Debts[i].RemainingAmount > result.Debts[j].RemainingAmount
+	})
+
+	return result, nil
 }

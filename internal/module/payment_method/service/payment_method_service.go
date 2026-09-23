@@ -166,15 +166,14 @@ func (s *PaymentMethodService) Unhide(ctx context.Context, userID string, paymen
 }
 
 func (s *PaymentMethodService) Update(ctx context.Context, userID string, paymentMethodID string, req *dto.UpdatePaymentMethodRequest) error {
-	exists, err := s.paymentMethodRepo.ExistsByIDAndUserID(ctx, s.db, userID, paymentMethodID)
+	existing, err := s.paymentMethodRepo.FindByIDAndUserID(ctx, s.db, paymentMethodID, userID)
 	if err != nil {
 		return err
 	}
-	if !exists {
-		return constants.ErrPaymentMethodNotFound
-	}
 
-	var encryptedAccountNumber []byte
+	// account_number is optional on update; an empty value means preserve the
+	// existing encrypted value rather than clearing the stored account number.
+	encryptedAccountNumber := existing.AccountNumber
 
 	if req.AccountNumber != "" {
 		ciphertext, err := s.encryption.Encrypt(req.AccountNumber)

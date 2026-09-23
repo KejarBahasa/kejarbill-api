@@ -24,6 +24,4 @@ var (
 	ErrExpenseNotFound = errors.New("expense not found")
 
 	ErrInvalidTotalAmount = errors.New("invalid total amount")
-
-	ErrEqualAmountNotDivisible = errors.New("total amount is not evenly divisible among participants")
 )

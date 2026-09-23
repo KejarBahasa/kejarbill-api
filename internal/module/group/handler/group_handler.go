@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"time"
 
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group/service"
 
@@ -84,6 +86,27 @@ func (h *GroupHandler) GetSummary(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "group summary fetched", summary)
+}
+
+func (h *GroupHandler) GetMyDebts(c fiber.Ctx) error {
+	var params dto.GroupIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	debts, err := h.groupService.GetMyDebts(c.Context(), security.GetUserID(c), params.GroupID)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrGroupNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, "internal server error", nil)
+		}
+	}
+
+	return response.Success(c, "my debts fetched", debts)
 }
 
 func (h *GroupHandler) ListMine(c fiber.Ctx) error {

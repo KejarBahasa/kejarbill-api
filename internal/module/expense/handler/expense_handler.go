@@ -66,9 +66,6 @@ func (h *ExpenseHandler) CreateEqualExpense(c fiber.Ctx) error {
 		case errors.Is(err, expenseConstants.ErrInvalidExpenseDate):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
-		case errors.Is(err, expenseConstants.ErrEqualAmountNotDivisible):
-			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
-
 		default:
 			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
 		}
@@ -227,13 +224,23 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 	}
 
 	for _, item := range expense.Items {
+		itemParticipants := make([]dto.ExpenseDetailItemParticipantResponse, 0, len(item.Participants))
+		for _, participant := range item.Participants {
+			itemParticipants = append(itemParticipants, dto.ExpenseDetailItemParticipantResponse{
+				ParticipantID: participant.ParticipantID,
+				DisplayName:   participant.DisplayName,
+				ShareAmount:   participant.ShareAmount,
+			})
+		}
+
 		items = append(items, dto.ExpenseDetailItemResponse{
-			ID:        item.ID,
-			Name:      item.Name,
-			Qty:       item.Qty,
-			UnitPrice: item.UnitPrice,
-			Subtotal:  item.Subtotal,
-			Notes:     item.Notes,
+			ID:           item.ID,
+			Name:         item.Name,
+			Qty:          item.Qty,
+			UnitPrice:    item.UnitPrice,
+			Subtotal:     item.Subtotal,
+			Notes:        item.Notes,
+			Participants: itemParticipants,
 		})
 	}
 

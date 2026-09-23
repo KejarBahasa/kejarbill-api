@@ -90,6 +90,7 @@ func (f *summaryFixture) cleanup(t *testing.T) {
 		sql  string
 		args []any
 	}{
+		{`DELETE FROM settlements WHERE group_id = $1`, []any{f.groupID}},
 		{`DELETE FROM account_ledger WHERE group_id = $1`, []any{f.groupID}},
 		{`DELETE FROM expense_participants WHERE expense_id IN (SELECT id FROM expenses WHERE group_id = $1)`, []any{f.groupID}},
 		{`DELETE FROM expenses WHERE group_id = $1`, []any{f.groupID}},

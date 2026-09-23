@@ -118,17 +118,19 @@ func (r *GroupParticipantRepository) FindByIDAndGroupID(ctx context.Context, db 
 func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.GroupParticipant, error) {
 	query := `
 		SELECT
-			id,
-			group_id,
-			user_id,
-			participant_type,
-			display_name,
-			created_by,
-			created_at,
-			updated_at
-		FROM group_participants
-		WHERE group_id = $1
-		ORDER BY created_at ASC
+			gp.id,
+			gp.group_id,
+			gp.user_id,
+			gp.participant_type,
+			gp.display_name,
+			u.username,
+			gp.created_by,
+			gp.created_at,
+			gp.updated_at
+		FROM group_participants gp
+		LEFT JOIN users u ON u.id = gp.user_id
+		WHERE gp.group_id = $1
+		ORDER BY gp.created_at ASC
 	`
 
 	rows, err := db.Query(ctx, query, groupID)
@@ -148,6 +150,7 @@ func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db datab
 			&participant.UserID,
 			&participant.ParticipantType,
 			&participant.DisplayName,
+			&participant.Username,
 			&participant.CreatedBy,
 			&participant.CreatedAt,
 			&participant.UpdatedAt,

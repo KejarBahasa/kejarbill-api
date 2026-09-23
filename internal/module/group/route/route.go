@@ -30,6 +30,7 @@ func GroupRoute(
 	group.Get("/", groupHandler.ListMine)
 	group.Get("/:group_id", groupHandler.GetDetailByID)
 	group.Get("/:group_id/summary", groupHandler.GetSummary)
+	group.Get("/:group_id/my-debts", groupHandler.GetMyDebts)
 
 	group.Get("/:group_id/activities", activityHandler.GetByGroupID)
 
@@ -47,4 +48,5 @@ func GroupRoute(
 	group.Post("/:group_id/settlements", settlementHandler.Create)
 	group.Get("/:group_id/settlements", settlementHandler.GetByGroupID)
 	group.Get("/:group_id/participants/:participant_id/payment-methods", settlementHandler.GetRecipientPaymentMethods)
+	group.Post("/:group_id/participants/:participant_id/payment-methods/:payment_method_id/reveal", settlementHandler.RevealRecipientPaymentMethod)
 }

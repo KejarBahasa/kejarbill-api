@@ -346,6 +346,75 @@ func (s *SettlementService) GetRecipientPaymentMethods(ctx context.Context, requ
 	return result, nil
 }
 
+func (s *SettlementService) RevealRecipientPaymentMethod(ctx context.Context, requesterUserID string, groupID string, recipientParticipantID string, paymentMethodID string) (string, error) {
+	groupExists, err := s.groupRepo.ExistsByID(ctx, s.db, groupID)
+	if err != nil {
+		return "", err
+	}
+	if !groupExists {
+		return "", expenseConstants.ErrGroupNotFound
+	}
+
+	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, groupID, requesterUserID)
+	if err != nil {
+		return "", err
+	}
+	if !hasAccess {
+		return "", expenseConstants.ErrForbiddenGroupAccess
+	}
+
+	recipient, err := s.groupParticipantRepo.FindByIDAndGroupID(ctx, s.db, recipientParticipantID, groupID)
+	if err != nil {
+		return "", err
+	}
+	if recipient == nil || recipient.UserID == nil {
+		return "", paymentMethodConstants.ErrPaymentMethodNotFound
+	}
+
+	method, err := s.paymentMethodRepo.FindByIDAndUserID(ctx, s.db, paymentMethodID, *recipient.UserID)
+	if err != nil {
+		return "", err
+	}
+	if method.Status != paymentMethodConstants.StatusActive && requesterUserID != *recipient.UserID {
+		return "", paymentMethodConstants.ErrPaymentMethodNotFound
+	}
+
+	if requesterUserID != *recipient.UserID {
+		switch method.Visibility {
+		case paymentMethodConstants.VisibilityGroupMember:
+			// Active group membership above is sufficient.
+		case paymentMethodConstants.VisibilityDebtorOnly:
+			requesterParticipant, err := s.groupParticipantRepo.FindByUserIDAndGroupID(ctx, s.db, groupID, requesterUserID)
+			if err != nil {
+				return "", err
+			}
+			if requesterParticipant == nil {
+				return "", paymentMethodConstants.ErrPaymentMethodNotFound
+			}
+			outstanding, err := s.ledgerRepo.GetOutstandingBalance(ctx, s.db, groupID, requesterParticipant.ID, recipientParticipantID)
+			if err != nil {
+				return "", err
+			}
+			if outstanding <= 0 {
+				return "", paymentMethodConstants.ErrPaymentMethodNotFound
+			}
+		default:
+			return "", paymentMethodConstants.ErrPaymentMethodNotFound
+		}
+	}
+
+	if len(method.AccountNumber) == 0 {
+		return "", paymentMethodConstants.ErrPaymentMethodNotFound
+	}
+
+	accountNumber, err := s.encryption.Decrypt(method.AccountNumber)
+	if err != nil {
+		return "", err
+	}
+
+	return accountNumber, nil
+}
+
 func buildCreateSettlementRequestHash(userID string, groupID string, req *dto.CreateSettlementBody) (string, error) {
 	payload, err := json.Marshal(createSettlementHashPayload{
 		UserID:            userID,

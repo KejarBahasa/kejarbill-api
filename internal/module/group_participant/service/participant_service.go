@@ -147,6 +147,7 @@ func (s *GroupParticipantService) GetByGroupID(ctx context.Context, requesterUse
 		result = append(result, participantDto.ParticipantResponse{
 			ID:              participant.ID,
 			UserID:          participant.UserID,
+			Username:        participant.Username,
 			ParticipantType: participant.ParticipantType,
 			DisplayName:     participant.DisplayName,
 			Role:            role,

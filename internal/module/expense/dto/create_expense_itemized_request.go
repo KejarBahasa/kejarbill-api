@@ -11,9 +11,9 @@ type CreateExpenseItemizedRequest struct {
 }
 
 type CreateExpenseItemizedItem struct {
-	Name          string `json:"name" validate:"required,max=150"`
-	ParticipantID string `json:"participant_id" validate:"required,uuid"`
-	Notes         string `json:"notes"`
-	Qty           int64  `json:"qty" validate:"required,gt=0"`
-	UnitPrice     int64  `json:"unit_price" validate:"required,gt=0"`
+	Name           string   `json:"name" validate:"required,max=150"`
+	ParticipantIDs []string `json:"participant_ids" validate:"required,min=1,dive,uuid"`
+	Notes          string   `json:"notes"`
+	Qty            int64    `json:"qty" validate:"required,gt=0"`
+	UnitPrice      int64    `json:"unit_price" validate:"required,gt=0"`
 }
