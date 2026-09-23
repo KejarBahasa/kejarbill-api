@@ -48,4 +48,5 @@ func GroupRoute(
 	group.Post("/:group_id/settlements", settlementHandler.Create)
 	group.Get("/:group_id/settlements", settlementHandler.GetByGroupID)
 	group.Get("/:group_id/participants/:participant_id/payment-methods", settlementHandler.GetRecipientPaymentMethods)
+	group.Post("/:group_id/participants/:participant_id/payment-methods/:payment_method_id/reveal", settlementHandler.RevealRecipientPaymentMethod)
 }

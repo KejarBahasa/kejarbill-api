@@ -10,6 +10,7 @@ import (
 	groupDto "github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 
 	paymentMethodConstants "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/constants"
+	paymentMethodDto "github.com/KejarBahasa/kejarbill-api/internal/module/payment_method/dto"
 	settlementConstants "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/settlement/service"
@@ -192,4 +193,35 @@ func (h *SettlementHandler) GetRecipientPaymentMethods(c fiber.Ctx) error {
 	return response.Success(c, "payment methods fetched", fiber.Map{
 		"payment_methods": methods,
 	})
+}
+
+func (h *SettlementHandler) RevealRecipientPaymentMethod(c fiber.Ctx) error {
+	var params dto.RevealRecipientPaymentMethodParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	c.Set("Cache-Control", "no-store, private")
+	c.Set("Pragma", "no-cache")
+
+	accountNumber, err := h.settlementService.RevealRecipientPaymentMethod(
+		c.Context(),
+		security.GetUserID(c),
+		params.GroupID,
+		params.ParticipantID,
+		params.PaymentMethodID,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrGroupNotFound),
+			errors.Is(err, paymentMethodConstants.ErrPaymentMethodNotFound):
+			return response.Error(c, fiber.StatusNotFound, paymentMethodConstants.ErrPaymentMethodNotFound.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, "internal server error", nil)
+		}
+	}
+
+	return response.Success(c, "payment method revealed", paymentMethodDto.RevealPaymentMethodResponse{AccountNumber: accountNumber})
 }

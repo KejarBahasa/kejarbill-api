@@ -278,3 +278,36 @@ func (r *PaymentMethodRepository) FindByID(ctx context.Context, db database.PgxE
 
 	return &paymentMethod, nil
 }
+
+func (r *PaymentMethodRepository) FindByIDAndUserID(ctx context.Context, db database.PgxExt, paymentMethodID string, userID string) (*entity.PaymentMethod, error) {
+	query := `
+		SELECT
+			id,
+			user_id,
+			account_number,
+			visibility,
+			status
+		FROM payment_methods
+		WHERE id = $1
+			AND user_id = $2
+			AND deleted_at IS NULL
+			AND status <> 'deleted'
+	`
+
+	var paymentMethod entity.PaymentMethod
+	err := db.QueryRow(ctx, query, paymentMethodID, userID).Scan(
+		&paymentMethod.ID,
+		&paymentMethod.UserID,
+		&paymentMethod.AccountNumber,
+		&paymentMethod.Visibility,
+		&paymentMethod.Status,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrPaymentMethodNotFound
+		}
+		return nil, err
+	}
+
+	return &paymentMethod, nil
+}
