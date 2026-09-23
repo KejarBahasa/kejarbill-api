@@ -25,10 +25,17 @@ type ExpenseDetailParticipantResponse struct {
 }
 
 type ExpenseDetailItemResponse struct {
-	Notes     *string `json:"notes"`
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Qty       int64   `json:"qty"`
-	UnitPrice int64   `json:"unit_price"`
-	Subtotal  int64   `json:"subtotal"`
+	Notes        *string                                `json:"notes"`
+	ID           string                                 `json:"id"`
+	Name         string                                 `json:"name"`
+	Qty          int64                                  `json:"qty"`
+	UnitPrice    int64                                  `json:"unit_price"`
+	Subtotal     int64                                  `json:"subtotal"`
+	Participants []ExpenseDetailItemParticipantResponse `json:"participants"`
+}
+
+type ExpenseDetailItemParticipantResponse struct {
+	ParticipantID string `json:"participant_id"`
+	DisplayName   string `json:"display_name"`
+	ShareAmount   int64  `json:"share_amount"`
 }

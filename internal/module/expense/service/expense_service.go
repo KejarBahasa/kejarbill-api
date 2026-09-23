@@ -18,6 +18,7 @@ import (
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -163,23 +164,42 @@ func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string,
 func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID string, req *dto.CreateExpenseItemizedRequest) (string, error) {
 	participantShareMap := make(map[string]int64)
 	items := make([]entity.ExpenseItem, 0, len(req.Items))
+	itemParticipants := make([]entity.ExpenseItemParticipant, 0)
 	participantIDs := make([]string, 0, len(req.Items))
 	var totalAmount int64
 
 	for _, item := range req.Items {
+		if utils.HasDuplicateString(item.ParticipantIDs) {
+			return "", expenseConstants.ErrDuplicateParticipants
+		}
+
 		subtotal := item.Qty * item.UnitPrice
-
-		participantShareMap[item.ParticipantID] += subtotal
-
-		participantIDs = append(participantIDs, item.ParticipantID)
+		baseShare := subtotal / int64(len(item.ParticipantIDs))
+		remainder := subtotal % int64(len(item.ParticipantIDs))
+		itemID := uuid.NewString()
 
 		items = append(items, entity.ExpenseItem{
+			ID:        itemID,
 			Name:      item.Name,
 			Qty:       item.Qty,
 			UnitPrice: item.UnitPrice,
 			Subtotal:  subtotal,
 			Notes:     utils.PtrOrNil(item.Notes),
 		})
+
+		for index, participantID := range item.ParticipantIDs {
+			shareAmount := baseShare
+			if int64(index) < remainder {
+				shareAmount++
+			}
+			participantIDs = append(participantIDs, participantID)
+			participantShareMap[participantID] += shareAmount
+			itemParticipants = append(itemParticipants, entity.ExpenseItemParticipant{
+				ExpenseItemID: itemID,
+				ParticipantID: participantID,
+				ShareAmount:   shareAmount,
+			})
+		}
 
 		totalAmount += subtotal
 	}
@@ -222,6 +242,11 @@ func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID strin
 		}
 
 		err = s.expenseRepo.BulkCreateExpenseItems(ctx, tx, items)
+		if err != nil {
+			return err
+		}
+
+		err = s.expenseRepo.BulkCreateExpenseItemParticipants(ctx, tx, itemParticipants)
 		if err != nil {
 			return err
 		}
@@ -331,16 +356,25 @@ func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID stri
 	if err != nil {
 		return nil, err
 	}
+	itemParticipants, err := s.expenseRepo.FindExpenseItemParticipantsByExpenseID(ctx, s.db, expenseID)
+	if err != nil {
+		return nil, err
+	}
+	participantsByItem := make(map[string][]entity.ExpenseItemParticipant)
+	for _, participant := range itemParticipants {
+		participantsByItem[participant.ExpenseItemID] = append(participantsByItem[participant.ExpenseItemID], participant)
+	}
 	itemResponses := make([]entity.ExpenseItem, 0, len(items))
 
 	for _, item := range items {
 		itemResponses = append(itemResponses, entity.ExpenseItem{
-			ID:        item.ID,
-			Name:      item.Name,
-			Qty:       item.Qty,
-			UnitPrice: item.UnitPrice,
-			Subtotal:  item.Subtotal,
-			Notes:     item.Notes,
+			ID:           item.ID,
+			Name:         item.Name,
+			Qty:          item.Qty,
+			UnitPrice:    item.UnitPrice,
+			Subtotal:     item.Subtotal,
+			Notes:        item.Notes,
+			Participants: participantsByItem[item.ID],
 		})
 	}
 

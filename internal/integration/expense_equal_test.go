@@ -85,6 +85,7 @@ func (f *equalExpenseFixture) cleanup(t *testing.T) {
 		{`DELETE FROM account_ledger WHERE group_id = $1`, []any{f.groupID}},
 		{`DELETE FROM expense_participants WHERE expense_id IN (SELECT id FROM expenses WHERE group_id = $1)`, []any{f.groupID}},
 		{`DELETE FROM expense_item_participants WHERE expense_item_id IN (SELECT ei.id FROM expense_items ei JOIN expenses e ON e.id = ei.expense_id WHERE e.group_id = $1)`, []any{f.groupID}},
+		{`DELETE FROM expense_item_participants WHERE expense_item_id IN (SELECT ei.id FROM expense_items ei JOIN expenses e ON e.id = ei.expense_id WHERE e.group_id = $1)`, []any{f.groupID}},
 		{`DELETE FROM expense_items WHERE expense_id IN (SELECT id FROM expenses WHERE group_id = $1)`, []any{f.groupID}},
 		{`DELETE FROM settlements WHERE group_id = $1`, []any{f.groupID}},
 		{`DELETE FROM expenses WHERE group_id = $1`, []any{f.groupID}},
