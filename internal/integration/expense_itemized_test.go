@@ -14,6 +14,7 @@ import (
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
+	settlementRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/repository"
 	"github.com/google/uuid"
 )
 
@@ -26,6 +27,7 @@ func newItemizedService() *expenseServicePkg.ExpenseService {
 		groupRepoPkg.NewGroupRepository(),
 		groupMemberRepoPkg.NewGroupMemberRepository(),
 		groupParticipantRepoPkg.NewGroupParticipantRepository(),
+		settlementRepoPkg.NewSettlementRepository(),
 	)
 }
 

@@ -14,6 +14,7 @@ type ExpenseDetail struct {
 	PayerParticipantID string
 	PayerDisplayName   string
 	TotalAmount        int64
+	Version            int
 }
 
 type ExpenseDetailParticipant struct {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/dto"
@@ -11,12 +12,14 @@ import (
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/utils"
 
 	groupRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group/repository"
+	groupMemberConstants "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/constants"
 	groupMemberRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/repository"
 	groupParticipantRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/repository"
 	ledgerConstants "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/constants"
 	ledgerEntity "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/entity"
 	ledgerRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/repository"
 	ledgerServicePkg "github.com/KejarBahasa/kejarbill-api/internal/module/ledger/service"
+	settlementRepoPkg "github.com/KejarBahasa/kejarbill-api/internal/module/settlement/repository"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,6 +36,7 @@ type ExpenseService struct {
 	groupRepo            *groupRepoPkg.GroupRepository
 	groupMemberRepo      *groupMemberRepoPkg.GroupMemberRepository
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository
+	settlementRepo       *settlementRepoPkg.SettlementRepository
 }
 
 func NewExpenseService(
@@ -46,6 +50,7 @@ func NewExpenseService(
 	groupRepo *groupRepoPkg.GroupRepository,
 	groupMemberRepo *groupMemberRepoPkg.GroupMemberRepository,
 	groupParticipantRepo *groupParticipantRepoPkg.GroupParticipantRepository,
+	settlementRepo *settlementRepoPkg.SettlementRepository,
 ) *ExpenseService {
 	return &ExpenseService{
 		db: db,
@@ -58,6 +63,7 @@ func NewExpenseService(
 		groupRepo:            groupRepo,
 		groupMemberRepo:      groupMemberRepo,
 		groupParticipantRepo: groupParticipantRepo,
+		settlementRepo:       settlementRepo,
 	}
 }
 
@@ -384,22 +390,263 @@ func (s *ExpenseService) GetDetailByID(ctx context.Context, requesterUserID stri
 	return expense, nil
 }
 
-func (s *ExpenseService) DeleteByID(ctx context.Context, requesterUserID string, expenseID string) error {
-	expense, err := s.expenseRepo.FindDetailByID(ctx, s.db, expenseID)
+func (s *ExpenseService) Update(ctx context.Context, requesterUserID string, expenseID string, req *dto.UpdateExpenseRequest) error {
+	_, err := time.Parse(time.RFC3339, req.ExpenseDate)
 	if err != nil {
-		return expenseConstants.ErrExpenseNotFound
+		return expenseConstants.ErrInvalidExpenseDate
 	}
 
-	hasAccess, err := s.groupMemberRepo.ExistsActiveMember(ctx, s.db, expense.GroupID, requesterUserID)
-	if err != nil {
-		return err
-	}
-	if !hasAccess {
-		return expenseConstants.ErrForbiddenGroupAccess
+	participantShareMap := make(map[string]int64)
+	participantIDs := make([]string, 0)
+	items := make([]entity.ExpenseItem, 0, len(req.Items))
+	itemParticipants := make([]entity.ExpenseItemParticipant, 0)
+	var totalAmount int64
+
+	switch req.SplitMethod {
+	case expenseConstants.SplitMethodEqual:
+		if len(req.ParticipantIDs) == 0 {
+			return expenseConstants.ErrParticipantsRequired
+		}
+		if utils.HasDuplicateString(req.ParticipantIDs) {
+			return expenseConstants.ErrDuplicateParticipants
+		}
+		if req.TotalAmount <= 0 {
+			return expenseConstants.ErrInvalidTotalAmount
+		}
+		baseShare := req.TotalAmount / int64(len(req.ParticipantIDs))
+		remainder := req.TotalAmount % int64(len(req.ParticipantIDs))
+		for index, participantID := range req.ParticipantIDs {
+			shareAmount := baseShare
+			if int64(index) < remainder {
+				shareAmount++
+			}
+			participantShareMap[participantID] = shareAmount
+			participantIDs = append(participantIDs, participantID)
+		}
+		totalAmount = req.TotalAmount
+
+	case expenseConstants.SplitMethodCustom:
+		if len(req.Participants) == 0 {
+			return expenseConstants.ErrParticipantsRequired
+		}
+		for _, participant := range req.Participants {
+			if participant.ShareAmount <= 0 {
+				return expenseConstants.ErrInvalidTotalAmount
+			}
+			participantIDs = append(participantIDs, participant.ParticipantID)
+			participantShareMap[participant.ParticipantID] += participant.ShareAmount
+			totalAmount += participant.ShareAmount
+		}
+		if utils.HasDuplicateString(participantIDs) {
+			return expenseConstants.ErrDuplicateParticipants
+		}
+
+	case expenseConstants.SplitMethodItemized:
+		if len(req.Items) == 0 {
+			return expenseConstants.ErrParticipantsRequired
+		}
+		for _, item := range req.Items {
+			if len(item.ParticipantIDs) == 0 {
+				return expenseConstants.ErrParticipantsRequired
+			}
+			if utils.HasDuplicateString(item.ParticipantIDs) {
+				return expenseConstants.ErrDuplicateParticipants
+			}
+			subtotal := item.Qty * item.UnitPrice
+			baseShare := subtotal / int64(len(item.ParticipantIDs))
+			remainder := subtotal % int64(len(item.ParticipantIDs))
+			itemID := uuid.NewString()
+			items = append(items, entity.ExpenseItem{
+				ID:        itemID,
+				Name:      item.Name,
+				Qty:       item.Qty,
+				UnitPrice: item.UnitPrice,
+				Subtotal:  subtotal,
+				Notes:     utils.PtrOrNil(item.Notes),
+			})
+			for index, participantID := range item.ParticipantIDs {
+				shareAmount := baseShare
+				if int64(index) < remainder {
+					shareAmount++
+				}
+				participantIDs = append(participantIDs, participantID)
+				participantShareMap[participantID] += shareAmount
+				itemParticipants = append(itemParticipants, entity.ExpenseItemParticipant{
+					ExpenseItemID: itemID,
+					ParticipantID: participantID,
+					ShareAmount:   shareAmount,
+				})
+			}
+			totalAmount += subtotal
+		}
+
+	default:
+		return expenseConstants.ErrInvalidTotalAmount
 	}
 
 	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
-		err := s.expenseRepo.DeleteExpenseParticipants(ctx, tx, expenseID)
+		current, err := s.expenseRepo.FindForUpdate(ctx, tx, expenseID)
+		if err != nil {
+			return expenseConstants.ErrExpenseNotFound
+		}
+		if current.Status != "active" {
+			return expenseConstants.ErrExpenseLocked
+		}
+		if req.Version != current.Version {
+			return expenseConstants.ErrExpenseVersionConflict
+		}
+
+		role, err := s.groupMemberRepo.FindActiveMemberRole(ctx, tx, current.GroupID, requesterUserID)
+		if err != nil {
+			return err
+		}
+		if role == "" {
+			return expenseConstants.ErrForbiddenGroupAccess
+		}
+		if current.CreatedBy != requesterUserID && !groupMemberConstants.CanManage(role) {
+			return expenseConstants.ErrExpenseEditForbidden
+		}
+
+		validationResult, err := s.validateExpenseCreation(ctx, req.SplitMethod, requesterUserID, current.GroupID, req.PayerParticipantID, participantIDs, req.ExpenseDate)
+		if err != nil {
+			return err
+		}
+
+		oldParticipants, err := s.expenseRepo.FindExpenseParticipants(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+		lockedParticipantIDs := []string{current.PaidByParticipantID, req.PayerParticipantID}
+		for _, participant := range oldParticipants {
+			lockedParticipantIDs = append(lockedParticipantIDs, participant.ParticipantID)
+		}
+		lockedParticipantIDs = append(lockedParticipantIDs, participantIDs...)
+		lockedParticipantIDs = utils.UniqueStrings(lockedParticipantIDs)
+		if err := s.groupParticipantRepo.LockByIDsAndGroupID(ctx, tx, current.GroupID, lockedParticipantIDs); err != nil {
+			return err
+		}
+
+		oldParticipantIDs := make([]string, 0, len(oldParticipants))
+		for _, participant := range oldParticipants {
+			oldParticipantIDs = append(oldParticipantIDs, participant.ParticipantID)
+		}
+		oldParticipantIDs = utils.UniqueStrings(append(oldParticipantIDs, current.PaidByParticipantID))
+		settled, err := s.settlementRepo.HasCompletedSettlementForPairs(ctx, tx, current.GroupID, current.PaidByParticipantID, oldParticipantIDs)
+		if err != nil {
+			return err
+		}
+		if settled {
+			return expenseConstants.ErrExpenseLocked
+		}
+
+		if err := s.expenseRepo.DeleteExpenseParticipants(ctx, tx, expenseID); err != nil {
+			return err
+		}
+		if err := s.expenseRepo.DeleteExpenseItemParticipants(ctx, tx, expenseID); err != nil {
+			return err
+		}
+		if err := s.expenseRepo.DeleteExpenseItems(ctx, tx, expenseID); err != nil {
+			return err
+		}
+		if err := s.ledgerRepo.DeleteBySourceID(ctx, tx, expenseID); err != nil {
+			return err
+		}
+
+		if err := s.expenseRepo.UpdateExpense(ctx, tx, &entity.Expense{
+			ID:                  expenseID,
+			Title:               req.Title,
+			Description:         utils.PtrOrNil(req.Description),
+			PaidByParticipantID: req.PayerParticipantID,
+			Currency:            req.Currency,
+			SubtotalAmount:      totalAmount,
+			TotalAmount:         totalAmount,
+			SplitMethod:         req.SplitMethod,
+			ExpenseDate:         validationResult.ExpenseDate,
+			Version:             current.Version,
+		}); err != nil {
+			return err
+		}
+
+		for index := range items {
+			items[index].ExpenseID = expenseID
+		}
+		if req.SplitMethod == expenseConstants.SplitMethodItemized {
+			if err := s.expenseRepo.BulkCreateExpenseItems(ctx, tx, items); err != nil {
+				return err
+			}
+			if err := s.expenseRepo.BulkCreateExpenseItemParticipants(ctx, tx, itemParticipants); err != nil {
+				return err
+			}
+		}
+
+		expenseParticipants := make([]entity.ExpenseParticipant, 0, len(participantShareMap))
+		ledgers := make([]ledgerEntity.AccountLedger, 0, len(participantShareMap))
+		for participantID, shareAmount := range participantShareMap {
+			expenseParticipants = append(expenseParticipants, entity.ExpenseParticipant{
+				ExpenseID:     expenseID,
+				ParticipantID: participantID,
+				ShareAmount:   shareAmount,
+			})
+			if participantID != req.PayerParticipantID {
+				ledgers = append(ledgers, ledgerEntity.AccountLedger{
+					GroupID:           current.GroupID,
+					FromParticipantID: participantID,
+					ToParticipantID:   req.PayerParticipantID,
+					Amount:            shareAmount,
+					SourceType:        ledgerConstants.SourceTypeExpense,
+					SourceID:          expenseID,
+				})
+			}
+		}
+		if err := s.expenseRepo.BulkCreateExpenseParticipants(ctx, tx, expenseParticipants); err != nil {
+			return err
+		}
+		return s.ledgerRepo.BulkCreate(ctx, tx, ledgers)
+	})
+}
+
+func (s *ExpenseService) DeleteByID(ctx context.Context, requesterUserID string, expenseID string) error {
+	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
+		expense, err := s.expenseRepo.FindForUpdate(ctx, tx, expenseID)
+		if err != nil {
+			return expenseConstants.ErrExpenseNotFound
+		}
+		if expense.Status != "active" {
+			return expenseConstants.ErrExpenseLocked
+		}
+
+		role, err := s.groupMemberRepo.FindActiveMemberRole(ctx, tx, expense.GroupID, requesterUserID)
+		if err != nil {
+			return err
+		}
+		if role == "" {
+			return expenseConstants.ErrForbiddenGroupAccess
+		}
+		if expense.CreatedBy != requesterUserID && !groupMemberConstants.CanManage(role) {
+			return expenseConstants.ErrExpenseEditForbidden
+		}
+
+		participants, err := s.expenseRepo.FindExpenseParticipants(ctx, tx, expenseID)
+		if err != nil {
+			return err
+		}
+		participantIDs := []string{expense.PaidByParticipantID}
+		for _, participant := range participants {
+			participantIDs = append(participantIDs, participant.ParticipantID)
+		}
+		participantIDs = utils.UniqueStrings(participantIDs)
+		if err := s.groupParticipantRepo.LockByIDsAndGroupID(ctx, tx, expense.GroupID, participantIDs); err != nil {
+			return err
+		}
+		settled, err := s.settlementRepo.HasCompletedSettlementForPairs(ctx, tx, expense.GroupID, expense.PaidByParticipantID, participantIDs)
+		if err != nil {
+			return err
+		}
+		if settled {
+			return expenseConstants.ErrExpenseLocked
+		}
+
+		err = s.expenseRepo.DeleteExpenseParticipants(ctx, tx, expenseID)
 		if err != nil {
 			return err
 		}

@@ -250,6 +250,7 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 		Description: expense.Description,
 		Currency:    expense.Currency,
 		TotalAmount: expense.TotalAmount,
+		Version:     expense.Version,
 		ExpenseDate: expense.ExpenseDate.Format(
 			time.RFC3339,
 		),
@@ -264,6 +265,36 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 	return response.Success(c, "expense detail fetched", result)
 }
 
+func (h *ExpenseHandler) Update(c fiber.Ctx) error {
+	var params dto.DeleteExpenseParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+	var body dto.UpdateExpenseRequest
+	if err := request.ValidateBody(c, &body); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	err := h.expenseService.Update(c.Context(), security.GetUserID(c), params.ExpenseID, &body)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrExpenseNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess),
+			errors.Is(err, expenseConstants.ErrExpenseEditForbidden):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrExpenseLocked):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrExpenseVersionConflict):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+		}
+	}
+
+	return response.Success[any](c, "expense updated", nil)
+}
+
 func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
 	var params dto.DeleteExpenseParams
 	if err := request.ValidatePathParams(c, &params); err != nil {
@@ -275,7 +306,17 @@ func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
 	err := h.expenseService.DeleteByID(c.Context(), requesterUserID, params.ExpenseID)
 
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		switch {
+		case errors.Is(err, expenseConstants.ErrExpenseNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess),
+			errors.Is(err, expenseConstants.ErrExpenseEditForbidden):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrExpenseLocked):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+		}
 	}
 
 	return response.Success[any](c, "expense deleted", nil)

@@ -122,7 +122,7 @@ func BuildDependency() (*Dependency, error) {
 	groupParticipantService := groupParticipantServicePkg.NewGroupParticipantService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	groupMemberService := groupMemberServicePkg.NewGroupMemberService(db, groupRepo, groupMemberRepo, groupParticipantRepo, userRepo)
 	ledgerService := ledgerServicePkg.NewLedgerService()
-	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupMemberRepo, groupParticipantRepo)
+	expenseService := expenseServicePkg.NewExpenseService(db, expenseRepo, ledgerRepo, ledgerService, groupRepo, groupMemberRepo, groupParticipantRepo, settlementRepo)
 	activityService := activityServicePkg.NewActivityService(db, expenseRepo, settlementRepo, groupRepo, groupMemberRepo)
 	balanceService := balanceServicePkg.NewBalanceService(db, ledgerRepo, groupRepo, groupMemberRepo)
 	settlementService := settlementServicePkg.NewSettlementService(db, settlementRepo, ledgerRepo, groupRepo, groupMemberRepo, groupParticipantRepo, paymentMethodRepo, encryption)

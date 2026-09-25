@@ -179,6 +179,10 @@ func (s *SettlementService) Create(ctx context.Context, userID string, groupID s
 			return settlementConstants.ErrInvalidSettlementParticipants
 		}
 
+		if err := s.groupParticipantRepo.LockByIDsAndGroupID(ctx, tx, groupID, []string{req.FromParticipantID, req.ToParticipantID}); err != nil {
+			return err
+		}
+
 		if err := s.validatePaymentMethod(ctx, tx, *req, toParticipant); err != nil {
 			return err
 		}
