@@ -19,5 +19,6 @@ func ExpenseRoute(
 	expense.Post("/itemized", expenseHandler.CreateItemizedExpense)
 
 	expense.Get("/:expense_id", expenseHandler.GetDetailByID)
+	expense.Patch("/:expense_id", expenseHandler.Update)
 	expense.Delete("/:expense_id", expenseHandler.DeleteByID)
 }

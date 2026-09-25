@@ -7,6 +7,7 @@ type ExpenseDetailResponse struct {
 	Currency     string                             `json:"currency"`
 	ExpenseDate  string                             `json:"expense_date"`
 	TotalAmount  int64                              `json:"total_amount"`
+	Version      int                                `json:"version"`
 	Payer        ExpenseDetailPayerResponse         `json:"payer"`
 	Participants []ExpenseDetailParticipantResponse `json:"participants"`
 	Items        []ExpenseDetailItemResponse        `json:"items"`

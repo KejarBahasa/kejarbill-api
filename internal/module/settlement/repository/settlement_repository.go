@@ -252,3 +252,22 @@ func (r *SettlementRepository) FindDetailByID(ctx context.Context, db database.P
 
 	return &detail, nil
 }
+
+func (r *SettlementRepository) HasCompletedSettlementForPairs(ctx context.Context, db database.PgxExt, groupID string, payerParticipantID string, participantIDs []string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM settlements
+			WHERE group_id = $1
+				AND status = 'completed'
+				AND (
+					(from_participant_id = $2 AND to_participant_id = ANY($3))
+					OR (to_participant_id = $2 AND from_participant_id = ANY($3))
+				)
+		)
+	`
+
+	var exists bool
+	err := db.QueryRow(ctx, query, groupID, payerParticipantID, participantIDs).Scan(&exists)
+	return exists, err
+}

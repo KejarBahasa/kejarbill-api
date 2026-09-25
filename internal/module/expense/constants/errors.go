@@ -24,4 +24,10 @@ var (
 	ErrExpenseNotFound = errors.New("expense not found")
 
 	ErrInvalidTotalAmount = errors.New("invalid total amount")
+
+	ErrExpenseEditForbidden = errors.New("expense edit not allowed")
+
+	ErrExpenseLocked = errors.New("expense locked after settlement")
+
+	ErrExpenseVersionConflict = errors.New("expense version conflict")
 )

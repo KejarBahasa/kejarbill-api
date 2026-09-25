@@ -195,6 +195,29 @@ func (r *GroupParticipantRepository) FindByUserIDAndGroupID(ctx context.Context,
 	return &participant, nil
 }
 
+func (r *GroupParticipantRepository) LockByIDsAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantIDs []string) error {
+	query := `
+		SELECT id
+		FROM group_participants
+		WHERE group_id = $1 AND id = ANY($2)
+		ORDER BY id
+		FOR UPDATE
+	`
+
+	rows, err := db.Query(ctx, query, groupID, participantIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var participantID string
+		if err := rows.Scan(&participantID); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
 func (r *GroupParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.GroupParticipant) error {
 	query := `
 		INSERT INTO group_participants (

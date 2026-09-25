@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/expense/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
 	"github.com/jackc/pgx/v5"
@@ -337,6 +339,7 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 			e.currency,
 			e.total_amount,
 			e.expense_date,
+			e.version,
 
 			p.id,
 			p.display_name
@@ -356,6 +359,7 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 		&expense.Currency,
 		&expense.TotalAmount,
 		&expense.ExpenseDate,
+		&expense.Version,
 
 		&expense.PayerParticipantID,
 		&expense.PayerDisplayName,
@@ -365,6 +369,82 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 	}
 
 	return &expense, nil
+}
+
+func (r *ExpenseRepository) FindForUpdate(ctx context.Context, db database.PgxExt, expenseID string) (*entity.Expense, error) {
+	query := `
+		SELECT id, group_id, title, description, paid_by_participant_id, currency,
+			total_amount, split_method, expense_date, status, created_by, version
+		FROM expenses
+		WHERE id = $1 AND deleted_at IS NULL
+		FOR UPDATE
+	`
+
+	var expense entity.Expense
+	err := db.QueryRow(ctx, query, expenseID).Scan(
+		&expense.ID,
+		&expense.GroupID,
+		&expense.Title,
+		&expense.Description,
+		&expense.PaidByParticipantID,
+		&expense.Currency,
+		&expense.TotalAmount,
+		&expense.SplitMethod,
+		&expense.ExpenseDate,
+		&expense.Status,
+		&expense.CreatedBy,
+		&expense.Version,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrExpenseNotFound
+		}
+		return nil, err
+	}
+	return &expense, nil
+}
+
+func (r *ExpenseRepository) UpdateExpense(ctx context.Context, db database.PgxExt, expense *entity.Expense) error {
+	query := `
+		UPDATE expenses
+		SET title = $2, description = $3, paid_by_participant_id = $4,
+			currency = $5, subtotal_amount = $6, total_amount = $7,
+			split_method = $8, expense_date = $9, version = version + 1,
+			updated_at = NOW()
+		WHERE id = $1 AND version = $10 AND deleted_at IS NULL
+	`
+	commandTag, err := db.Exec(ctx, query,
+		expense.ID,
+		expense.Title,
+		expense.Description,
+		expense.PaidByParticipantID,
+		expense.Currency,
+		expense.SubtotalAmount,
+		expense.TotalAmount,
+		expense.SplitMethod,
+		expense.ExpenseDate,
+		expense.Version,
+	)
+	if err != nil {
+		return err
+	}
+	if commandTag.RowsAffected() != 1 {
+		return constants.ErrExpenseNotFound
+	}
+	return nil
+}
+
+func (r *ExpenseRepository) DeleteExpenseItemParticipants(ctx context.Context, db database.PgxExt, expenseID string) error {
+	_, err := db.Exec(ctx, `
+		DELETE FROM expense_item_participants
+		WHERE expense_item_id IN (SELECT id FROM expense_items WHERE expense_id = $1)
+	`, expenseID)
+	return err
+}
+
+func (r *ExpenseRepository) DeleteExpenseItems(ctx context.Context, db database.PgxExt, expenseID string) error {
+	_, err := db.Exec(ctx, `DELETE FROM expense_items WHERE expense_id = $1`, expenseID)
+	return err
 }
 
 func (r *ExpenseRepository) FindExpenseParticipants(ctx context.Context, db database.PgxExt, expenseID string) ([]entity.ExpenseDetailParticipant, error) {
