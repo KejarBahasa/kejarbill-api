@@ -106,3 +106,24 @@ func (h *AuthHandler) Logout(c fiber.Ctx) error {
 
 	return response.Success[any](c, "logout success", nil)
 }
+
+func (h *AuthHandler) CheckUsernameAvailability(c fiber.Ctx) error {
+	var req dto.CheckUsernameAvailabilityRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	isAvailable, err := h.authService.CheckUsernameAvailability(c.Context(), req.Username)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	msg := "username is not available"
+	if isAvailable {
+		msg = "username is available"
+	}
+
+	return response.Success[any](c, msg, fiber.Map{
+		"is_available": isAvailable,
+	})
+}

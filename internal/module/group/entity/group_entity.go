@@ -3,8 +3,9 @@ package entity
 import "time"
 
 type Group struct {
-	ID        string
-	Name      string
-	CreatedBy string
-	CreatedAt time.Time
+	ID          string
+	Name        string
+	Description *string
+	CreatedBy   string
+	CreatedAt   time.Time
 }

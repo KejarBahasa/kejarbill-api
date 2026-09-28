@@ -16,4 +16,5 @@ func AuthRoute(
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/refresh-token", authHandler.RefreshToken)
 	auth.Post("/logout", authHandler.Logout)
+	auth.Post("/check-username-availability", authHandler.CheckUsernameAvailability)
 }

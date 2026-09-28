@@ -1,14 +1,16 @@
 package dto
 
 type ExpenseDetailResponse struct {
-	Participants []ExpenseDetailParticipantResponse `json:"participants"`
+	Description  *string                            `json:"description"`
 	ID           string                             `json:"id"`
 	Title        string                             `json:"title"`
-	Description  *string                            `json:"description"`
 	Currency     string                             `json:"currency"`
-	TotalAmount  int64                              `json:"total_amount"`
 	ExpenseDate  string                             `json:"expense_date"`
+	TotalAmount  int64                              `json:"total_amount"`
+	Version      int                                `json:"version"`
 	Payer        ExpenseDetailPayerResponse         `json:"payer"`
+	Participants []ExpenseDetailParticipantResponse `json:"participants"`
+	Items        []ExpenseDetailItemResponse        `json:"items"`
 }
 
 type ExpenseDetailPayerResponse struct {
@@ -17,6 +19,23 @@ type ExpenseDetailPayerResponse struct {
 }
 
 type ExpenseDetailParticipantResponse struct {
+	ParticipantID   string `json:"participant_id"`
+	DisplayName     string `json:"display_name"`
+	ParticipantType string `json:"participant_type"`
+	ShareAmount     int64  `json:"share_amount"`
+}
+
+type ExpenseDetailItemResponse struct {
+	Notes        *string                                `json:"notes"`
+	ID           string                                 `json:"id"`
+	Name         string                                 `json:"name"`
+	Qty          int64                                  `json:"qty"`
+	UnitPrice    int64                                  `json:"unit_price"`
+	Subtotal     int64                                  `json:"subtotal"`
+	Participants []ExpenseDetailItemParticipantResponse `json:"participants"`
+}
+
+type ExpenseDetailItemParticipantResponse struct {
 	ParticipantID string `json:"participant_id"`
 	DisplayName   string `json:"display_name"`
 	ShareAmount   int64  `json:"share_amount"`

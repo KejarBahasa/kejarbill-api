@@ -104,3 +104,39 @@ func (r *UserRepository) FindByIDs(ctx context.Context, db database.PgxExt, user
 
 	return users, nil
 }
+
+func (r *UserRepository) Search(ctx context.Context, keyword string, excludeUserID string) ([]entity.User, error) {
+	// ponytail: unescaped LIKE wildcards in keyword; upgrade to ESCAPE clause if % / _ leaking becomes a problem.
+	query := `
+		SELECT
+			id,
+			COALESCE(full_name, ''),
+			username
+		FROM users
+		WHERE
+			status = 'active'
+			AND deleted_at IS NULL
+			AND id <> $2
+			AND (username ILIKE $1 || '%' OR full_name ILIKE $1 || '%')
+		ORDER BY username ASC
+		LIMIT 10
+	`
+
+	rows, err := r.db.Query(ctx, query, keyword, excludeUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := make([]entity.User, 0)
+	for rows.Next() {
+		var user entity.User
+		if err := rows.Scan(&user.ID, &user.Name, &user.Username); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, rows.Err()
+}

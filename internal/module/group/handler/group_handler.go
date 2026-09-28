@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"time"
 
+	expenseConstants "github.com/KejarBahasa/kejarbill-api/internal/module/expense/constants"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group/dto"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group/service"
 
@@ -34,7 +36,7 @@ func (h *GroupHandler) Create(c fiber.Ctx) error {
 
 	userID := security.GetUserID(c)
 
-	groupID, err := h.groupService.Create(c.Context(), userID, body.Name)
+	groupID, err := h.groupService.Create(c.Context(), userID, body.Name, body.Description)
 	if err != nil {
 		return err
 	}
@@ -68,4 +70,67 @@ func (h *GroupHandler) GetDetailByID(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "group detail fetched", result)
+}
+
+func (h *GroupHandler) GetSummary(c fiber.Ctx) error {
+	var params dto.GroupIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	requesterUserID := security.GetUserID(c)
+
+	summary, err := h.groupService.GetSummary(c.Context(), requesterUserID, params.GroupID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success(c, "group summary fetched", summary)
+}
+
+func (h *GroupHandler) GetMyDebts(c fiber.Ctx) error {
+	var params dto.GroupIDParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	debts, err := h.groupService.GetMyDebts(c.Context(), security.GetUserID(c), params.GroupID)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrGroupNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, "internal server error", nil)
+		}
+	}
+
+	return response.Success(c, "my debts fetched", debts)
+}
+
+func (h *GroupHandler) ListMine(c fiber.Ctx) error {
+	userID := security.GetUserID(c)
+
+	groups, err := h.groupService.ListUserGroups(c.Context(), userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	result := make([]dto.GroupDetailResponse, 0, len(groups))
+	for _, group := range groups {
+		result = append(result, dto.GroupDetailResponse{
+			ID:                group.ID,
+			Name:              group.Name,
+			Description:       group.Description,
+			TotalMembers:      group.TotalMembers,
+			TotalParticipants: group.TotalParticipants,
+			TotalExpenses:     group.TotalExpenses,
+			CreatedAt:         group.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	return response.Success(c, "groups fetched", fiber.Map{
+		"groups": result,
+	})
 }

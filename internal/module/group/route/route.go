@@ -1,6 +1,7 @@
 package route
 
 import (
+	activityHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/activity/handler"
 	expenseHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/expense/handler"
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group/handler"
 	groupMemberHandlerPkg "github.com/KejarBahasa/kejarbill-api/internal/module/group_member/handler"
@@ -19,19 +20,26 @@ func GroupRoute(
 	groupMemberHandler *groupMemberHandlerPkg.GroupMemberHandler,
 	groupParticipantHandler *groupParticipantHandlerPkg.GroupParticipantHandler,
 	settlementHandler *settlementHandlerPkg.SettlementHandler,
+	activityHandler *activityHandlerPkg.ActivityHandler,
 	balanceHandler *balanceHandlerPkg.BalanceHandler,
 	expenseHandler *expenseHandlerPkg.ExpenseHandler,
 ) {
 	group := api.Group("/groups", authMiddleware.Protected)
 
 	group.Post("/", groupHandler.Create)
+	group.Get("/", groupHandler.ListMine)
 	group.Get("/:group_id", groupHandler.GetDetailByID)
+	group.Get("/:group_id/summary", groupHandler.GetSummary)
+	group.Get("/:group_id/my-debts", groupHandler.GetMyDebts)
+
+	group.Get("/:group_id/activities", activityHandler.GetByGroupID)
 
 	group.Post("/:group_id/members", groupMemberHandler.AddMember)
 	group.Post("/:group_id/members/bulk", groupMemberHandler.AddMemberBulk)
 
 	group.Get("/:group_id/participants", groupParticipantHandler.GetByGroupID)
 	group.Post("/:group_id/participants/guests", groupParticipantHandler.CreateGuestParticipants)
+	group.Patch("/:group_id/participants/:participant_id/claim", groupParticipantHandler.ClaimGuest)
 
 	group.Get("/:group_id/balances", balanceHandler.GetGroupBalances)
 
@@ -39,4 +47,6 @@ func GroupRoute(
 
 	group.Post("/:group_id/settlements", settlementHandler.Create)
 	group.Get("/:group_id/settlements", settlementHandler.GetByGroupID)
+	group.Get("/:group_id/participants/:participant_id/payment-methods", settlementHandler.GetRecipientPaymentMethods)
+	group.Post("/:group_id/participants/:participant_id/payment-methods/:payment_method_id/reveal", settlementHandler.RevealRecipientPaymentMethod)
 }

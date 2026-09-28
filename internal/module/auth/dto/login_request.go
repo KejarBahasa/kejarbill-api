@@ -1,6 +1,6 @@
 package dto
 
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email,max=255"`
-	Password string `json:"password" validate:"required,min=8"`
+	Identifier string `json:"identifier" validate:"required,min=3,max=255"`
+	Password   string `json:"password" validate:"required,min=8,max=128"`
 }

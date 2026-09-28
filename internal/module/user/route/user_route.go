@@ -16,4 +16,5 @@ func UserRoute(
 	user := api.Group("/users", authMiddleware.Protected)
 
 	user.Get("/me", userHandler.Me)
+	user.Get("/search", userHandler.Search)
 }

@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/KejarBahasa/kejarbill-api/internal/module/group_participant/entity"
 	"github.com/KejarBahasa/kejarbill-api/internal/shared/database"
+	"github.com/jackc/pgx/v5"
 )
 
 type GroupParticipantRepository struct {
@@ -63,20 +65,72 @@ func (r *GroupParticipantRepository) ExistsByUserIDAndGroupID(ctx context.Contex
 	return exists, err
 }
 
-func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.GroupParticipant, error) {
+func (r *GroupParticipantRepository) ClaimGuest(ctx context.Context, db database.PgxExt, participantID string, groupID string, userID string, displayName string) (int64, error) {
+	query := `
+		UPDATE group_participants
+		SET
+			user_id = $3,
+			participant_type = 'registered',
+			display_name = $4,
+			claimed_at = NOW(),
+			updated_at = NOW()
+		WHERE
+			id = $1
+			AND group_id = $2
+			AND participant_type = 'guest'
+			AND user_id IS NULL
+	`
+
+	tag, err := db.Exec(ctx, query, participantID, groupID, userID, displayName)
+
+	return tag.RowsAffected(), err
+}
+
+func (r *GroupParticipantRepository) FindByIDAndGroupID(ctx context.Context, db database.PgxExt, participantID string, groupID string) (*entity.GroupParticipant, error) {
 	query := `
 		SELECT
 			id,
 			group_id,
 			user_id,
-			participant_type,
-			display_name,
-			created_by,
-			created_at,
-			updated_at
+			participant_type
 		FROM group_participants
-		WHERE group_id = $1
-		ORDER BY created_at ASC
+		WHERE id = $1
+			AND group_id = $2
+	`
+
+	var participant entity.GroupParticipant
+	err := db.QueryRow(ctx, query, participantID, groupID).Scan(
+		&participant.ID,
+		&participant.GroupID,
+		&participant.UserID,
+		&participant.ParticipantType,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &participant, nil
+}
+
+func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db database.PgxExt, groupID string) ([]entity.GroupParticipant, error) {
+	query := `
+		SELECT
+			gp.id,
+			gp.group_id,
+			gp.user_id,
+			gp.participant_type,
+			gp.display_name,
+			u.username,
+			gp.created_by,
+			gp.created_at,
+			gp.updated_at
+		FROM group_participants gp
+		LEFT JOIN users u ON u.id = gp.user_id
+		WHERE gp.group_id = $1
+		ORDER BY gp.created_at ASC
 	`
 
 	rows, err := db.Query(ctx, query, groupID)
@@ -96,6 +150,7 @@ func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db datab
 			&participant.UserID,
 			&participant.ParticipantType,
 			&participant.DisplayName,
+			&participant.Username,
 			&participant.CreatedBy,
 			&participant.CreatedAt,
 			&participant.UpdatedAt,
@@ -108,6 +163,59 @@ func (r *GroupParticipantRepository) FindByGroupID(ctx context.Context, db datab
 	}
 
 	return participants, nil
+}
+
+func (r *GroupParticipantRepository) FindByUserIDAndGroupID(ctx context.Context, db database.PgxExt, groupID string, userID string) (*entity.GroupParticipant, error) {
+	query := `
+		SELECT
+			id,
+			group_id,
+			user_id,
+			participant_type
+		FROM group_participants
+		WHERE group_id = $1
+			AND user_id = $2
+		LIMIT 1
+	`
+
+	var participant entity.GroupParticipant
+	err := db.QueryRow(ctx, query, groupID, userID).Scan(
+		&participant.ID,
+		&participant.GroupID,
+		&participant.UserID,
+		&participant.ParticipantType,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &participant, nil
+}
+
+func (r *GroupParticipantRepository) LockByIDsAndGroupID(ctx context.Context, db database.PgxExt, groupID string, participantIDs []string) error {
+	query := `
+		SELECT id
+		FROM group_participants
+		WHERE group_id = $1 AND id = ANY($2)
+		ORDER BY id
+		FOR UPDATE
+	`
+
+	rows, err := db.Query(ctx, query, groupID, participantIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var participantID string
+		if err := rows.Scan(&participantID); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 func (r *GroupParticipantRepository) Create(ctx context.Context, db database.PgxExt, participant *entity.GroupParticipant) error {

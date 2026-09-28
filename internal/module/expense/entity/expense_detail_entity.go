@@ -4,6 +4,7 @@ import "time"
 
 type ExpenseDetail struct {
 	Participants       []ExpenseDetailParticipant
+	Items              []ExpenseItem
 	ID                 string
 	GroupID            string
 	Title              string
@@ -13,10 +14,12 @@ type ExpenseDetail struct {
 	PayerParticipantID string
 	PayerDisplayName   string
 	TotalAmount        int64
+	Version            int
 }
 
 type ExpenseDetailParticipant struct {
-	ParticipantID string
-	DisplayName   string
-	ShareAmount   int64
+	ParticipantID   string
+	DisplayName     string
+	ParticipantType string
+	ShareAmount     int64
 }

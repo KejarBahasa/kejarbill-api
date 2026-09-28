@@ -31,7 +31,7 @@ func NewExpenseHandler(
 	}
 }
 
-func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
+func (h *ExpenseHandler) CreateEqualExpense(c fiber.Ctx) error {
 	var req dto.CreateExpenseEqualRequest
 	if validationErr := request.ValidateBody(c, &req); validationErr != nil {
 		return request.HandleValidationError(c, validationErr)
@@ -39,7 +39,7 @@ func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 
 	userID := security.GetUserID(c)
 
-	expenseID, err := h.expenseService.CreateExpenseEqual(c.Context(), userID, &req)
+	expenseID, err := h.expenseService.CreateEqualExpense(c.Context(), userID, &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, expenseConstants.ErrParticipantsRequired):
@@ -72,6 +72,79 @@ func (h *ExpenseHandler) CreateExpenseEqual(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, "expense created", fiber.Map{"id": expenseID})
+}
+
+func (h *ExpenseHandler) CreateCustomExpense(c fiber.Ctx) error {
+	var req dto.CreateExpenseCustomRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	expenseID, err := h.expenseService.CreateCustomExpense(c.Context(), userID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrParticipantsRequired):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrGroupNotFound):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrPayerNotIncludedInParticipants):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrPayerParticipantNotInGroup):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrDuplicateParticipants):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrParticipantNotInGroup):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrInvalidExpenseDate):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		default:
+			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
+		}
+	}
+
+	return response.Success(
+		c,
+		"custom expense created",
+		fiber.Map{
+			"expense_id": expenseID,
+		},
+		fiber.StatusCreated,
+	)
+}
+
+func (h *ExpenseHandler) CreateItemizedExpense(c fiber.Ctx) error {
+	var req dto.CreateExpenseItemizedRequest
+	if err := request.ValidateBody(c, &req); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	userID := security.GetUserID(c)
+
+	expenseID, err := h.expenseService.CreateItemizedExpense(c.Context(), userID, &req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return response.Success(
+		c,
+		"itemized expense created",
+		fiber.Map{
+			"expense_id": expenseID,
+		},
+		fiber.StatusCreated,
+	)
 }
 
 func (h *ExpenseHandler) GetByGroupID(c fiber.Ctx) error {
@@ -139,12 +212,35 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 	}
 
 	participants := make([]dto.ExpenseDetailParticipantResponse, 0, len(expense.Participants))
+	items := make([]dto.ExpenseDetailItemResponse, 0, len(expense.Items))
 
 	for _, participant := range expense.Participants {
 		participants = append(participants, dto.ExpenseDetailParticipantResponse{
-			ParticipantID: participant.ParticipantID,
-			DisplayName:   participant.DisplayName,
-			ShareAmount:   participant.ShareAmount,
+			ParticipantID:   participant.ParticipantID,
+			DisplayName:     participant.DisplayName,
+			ParticipantType: participant.ParticipantType,
+			ShareAmount:     participant.ShareAmount,
+		})
+	}
+
+	for _, item := range expense.Items {
+		itemParticipants := make([]dto.ExpenseDetailItemParticipantResponse, 0, len(item.Participants))
+		for _, participant := range item.Participants {
+			itemParticipants = append(itemParticipants, dto.ExpenseDetailItemParticipantResponse{
+				ParticipantID: participant.ParticipantID,
+				DisplayName:   participant.DisplayName,
+				ShareAmount:   participant.ShareAmount,
+			})
+		}
+
+		items = append(items, dto.ExpenseDetailItemResponse{
+			ID:           item.ID,
+			Name:         item.Name,
+			Qty:          item.Qty,
+			UnitPrice:    item.UnitPrice,
+			Subtotal:     item.Subtotal,
+			Notes:        item.Notes,
+			Participants: itemParticipants,
 		})
 	}
 
@@ -154,6 +250,7 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 		Description: expense.Description,
 		Currency:    expense.Currency,
 		TotalAmount: expense.TotalAmount,
+		Version:     expense.Version,
 		ExpenseDate: expense.ExpenseDate.Format(
 			time.RFC3339,
 		),
@@ -162,9 +259,40 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 			DisplayName:   expense.PayerDisplayName,
 		},
 		Participants: participants,
+		Items:        items,
 	}
 
 	return response.Success(c, "expense detail fetched", result)
+}
+
+func (h *ExpenseHandler) Update(c fiber.Ctx) error {
+	var params dto.DeleteExpenseParams
+	if err := request.ValidatePathParams(c, &params); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+	var body dto.UpdateExpenseRequest
+	if err := request.ValidateBody(c, &body); err != nil {
+		return request.HandleValidationError(c, err)
+	}
+
+	err := h.expenseService.Update(c.Context(), security.GetUserID(c), params.ExpenseID, &body)
+	if err != nil {
+		switch {
+		case errors.Is(err, expenseConstants.ErrExpenseNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess),
+			errors.Is(err, expenseConstants.ErrExpenseEditForbidden):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrExpenseLocked):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrExpenseVersionConflict):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+		}
+	}
+
+	return response.Success[any](c, "expense updated", nil)
 }
 
 func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
@@ -178,7 +306,17 @@ func (h *ExpenseHandler) DeleteByID(c fiber.Ctx) error {
 	err := h.expenseService.DeleteByID(c.Context(), requesterUserID, params.ExpenseID)
 
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		switch {
+		case errors.Is(err, expenseConstants.ErrExpenseNotFound):
+			return response.Error(c, fiber.StatusNotFound, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrForbiddenGroupAccess),
+			errors.Is(err, expenseConstants.ErrExpenseEditForbidden):
+			return response.Error(c, fiber.StatusForbidden, err.Error(), nil)
+		case errors.Is(err, expenseConstants.ErrExpenseLocked):
+			return response.Error(c, fiber.StatusConflict, err.Error(), nil)
+		default:
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+		}
 	}
 
 	return response.Success[any](c, "expense deleted", nil)

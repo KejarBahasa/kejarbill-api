@@ -25,8 +25,9 @@ func BuildBulkInsertQuery(tableName string, columns []string, rowCount int) stri
 
 		for j := 0; j < colCount; j++ {
 			placeholderNum := i*colCount + j + 1
+			placeholderStr := "$" + strconv.Itoa(placeholderNum)
 
-			sb.WriteString("$" + strconv.Itoa(placeholderNum))
+			sb.WriteString(placeholderStr)
 
 			if j < colCount-1 {
 				sb.WriteString(", ")

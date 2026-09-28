@@ -16,11 +16,11 @@ func NewPostgres(cfg *config.Config) *pgxpool.Pool {
 
 	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DBUser,
-		cfg.DBPass,
-		cfg.DBHost,
-		cfg.DBPort,
-		cfg.DBName,
+		cfg.DB.User,
+		cfg.DB.Pass,
+		cfg.DB.Host,
+		cfg.DB.Port,
+		cfg.DB.Name,
 	)
 
 	poolConfig, err := pgxpool.ParseConfig(connString)
@@ -28,8 +28,8 @@ func NewPostgres(cfg *config.Config) *pgxpool.Pool {
 		log.Fatalf("Failed to parse DB config: %v", err)
 	}
 
-	poolConfig.MaxConns = cfg.DBPoolMaxConns
-	poolConfig.MinConns = cfg.DBPoolMinConns
+	poolConfig.MaxConns = cfg.DB.PoolMaxConns
+	poolConfig.MinConns = cfg.DB.PoolMinConns
 	poolConfig.MaxConnLifetime = time.Hour
 	poolConfig.MaxConnIdleTime = 30 * time.Minute
 
