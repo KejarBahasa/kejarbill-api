@@ -1,4 +1,4 @@
-APP_NAME := kejarbill-api
+BIN_NAME ?= kejarbill-api
 MAIN_FILE := cmd/api/main.go
 
 .PHONY: all build run dev test clean
@@ -6,10 +6,10 @@ MAIN_FILE := cmd/api/main.go
 all: build run
 
 build:
-	CGO_ENABLED=0 go build -mod=readonly -o ./tmp/$(APP_NAME) $(MAIN_FILE)
+	CGO_ENABLED=0 go build -mod=readonly -o ./tmp/$(BIN_NAME) $(MAIN_FILE)
 
 run:
-	./tmp/$(APP_NAME)
+	./tmp/$(BIN_NAME)
 
 dev:
 	air
