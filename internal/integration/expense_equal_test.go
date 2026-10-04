@@ -184,6 +184,45 @@ func TestEqualExpenseAcceptsDivisible(t *testing.T) {
 	}
 }
 
+func TestEqualExpenseAppliesProportionalDiscount(t *testing.T) {
+	fixture := newEqualExpenseFixture(t)
+	req := fixture.equalReq(100_000)
+	req.DiscountType = "percentage"
+	req.DiscountValue = 10
+
+	expenseID, err := fixture.service.CreateEqualExpense(context.Background(), fixture.ownerID, req)
+	if err != nil {
+		t.Fatalf("CreateEqualExpense() error = %v", err)
+	}
+
+	var subtotal, discount, total int64
+	if err := integrationPool.QueryRow(context.Background(), `
+		SELECT subtotal_amount, discount_amount, total_amount
+		FROM expenses WHERE id = $1
+	`, expenseID).Scan(&subtotal, &discount, &total); err != nil {
+		t.Fatalf("query expense amounts: %v", err)
+	}
+	if subtotal != 100_000 || discount != 10_000 || total != 90_000 {
+		t.Fatalf("amounts = %d/%d/%d, want 100000/10000/90000", subtotal, discount, total)
+	}
+
+	var payerShare, guestShare, ledgerAmount int64
+	if err := integrationPool.QueryRow(context.Background(), `
+		SELECT
+			MAX(CASE WHEN ep.participant_id = $2 THEN ep.share_amount ELSE 0 END),
+			MAX(CASE WHEN ep.participant_id = $3 THEN ep.share_amount ELSE 0 END),
+			MAX(CASE WHEN al.from_participant_id = $3 THEN al.amount ELSE 0 END)
+		FROM expense_participants ep
+		LEFT JOIN account_ledger al ON al.source_id = ep.expense_id
+		WHERE ep.expense_id = $1
+	`, expenseID, fixture.payerParticipant, fixture.guestParticipant).Scan(&payerShare, &guestShare, &ledgerAmount); err != nil {
+		t.Fatalf("query discounted shares: %v", err)
+	}
+	if payerShare != 45_000 || guestShare != 45_000 || ledgerAmount != 45_000 {
+		t.Fatalf("shares = %d/%d ledger %d, want 45000/45000/45000", payerShare, guestShare, ledgerAmount)
+	}
+}
+
 func TestEqualExpenseDistributesRemainderAcrossThreeParticipants(t *testing.T) {
 	fixture := newEqualExpenseFixture(t)
 	req := fixture.equalReqWithParticipants(100_001, []string{fixture.payerParticipant, fixture.guestParticipant, fixture.thirdParticipant})

@@ -21,6 +21,8 @@ type Expense struct {
 	TaxAmount           int64
 	ServiceAmount       int64
 	DiscountAmount      int64
+	DiscountType        string
+	DiscountValue       int64
 	TotalAmount         int64
 	Version             int
 }

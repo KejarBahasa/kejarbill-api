@@ -13,6 +13,10 @@ type ExpenseDetail struct {
 	ExpenseDate        time.Time
 	PayerParticipantID string
 	PayerDisplayName   string
+	DiscountType       string
+	DiscountValue      int64
+	DiscountAmount     int64
+	SubtotalAmount     int64
 	TotalAmount        int64
 	Version            int
 }

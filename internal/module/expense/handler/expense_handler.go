@@ -66,6 +66,12 @@ func (h *ExpenseHandler) CreateEqualExpense(c fiber.Ctx) error {
 		case errors.Is(err, expenseConstants.ErrInvalidExpenseDate):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
+		case errors.Is(err, expenseConstants.ErrInvalidDiscount):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrInvalidTotalAmount):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
 		default:
 			return response.Error(c, fiber.StatusInternalServerError, err.Error(), nil)
 		}
@@ -107,6 +113,12 @@ func (h *ExpenseHandler) CreateCustomExpense(c fiber.Ctx) error {
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
 		case errors.Is(err, expenseConstants.ErrInvalidExpenseDate):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrInvalidDiscount):
+			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
+
+		case errors.Is(err, expenseConstants.ErrInvalidTotalAmount):
 			return response.Error(c, fiber.StatusBadRequest, err.Error(), nil)
 
 		default:
@@ -245,12 +257,16 @@ func (h *ExpenseHandler) GetDetailByID(c fiber.Ctx) error {
 	}
 
 	result := dto.ExpenseDetailResponse{
-		ID:          expense.ID,
-		Title:       expense.Title,
-		Description: expense.Description,
-		Currency:    expense.Currency,
-		TotalAmount: expense.TotalAmount,
-		Version:     expense.Version,
+		ID:             expense.ID,
+		Title:          expense.Title,
+		Description:    expense.Description,
+		Currency:       expense.Currency,
+		SubtotalAmount: expense.SubtotalAmount,
+		DiscountType:   expense.DiscountType,
+		DiscountValue:  expense.DiscountValue,
+		DiscountAmount: expense.DiscountAmount,
+		TotalAmount:    expense.TotalAmount,
+		Version:        expense.Version,
 		ExpenseDate: expense.ExpenseDate.Format(
 			time.RFC3339,
 		),

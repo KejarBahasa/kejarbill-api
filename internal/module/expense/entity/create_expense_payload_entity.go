@@ -12,6 +12,10 @@ type CreateExpensePayload struct {
 	SplitMethod        string
 	PayerParticipantID string
 	Participants       []CreateExpenseParticipantPayload
+	DiscountType       string
+	DiscountValue      int64
+	DiscountAmount     int64
+	SubtotalAmount     int64
 	TotalAmount        int64
 }
 

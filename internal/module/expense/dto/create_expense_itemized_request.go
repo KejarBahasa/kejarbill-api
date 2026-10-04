@@ -8,6 +8,8 @@ type CreateExpenseItemizedRequest struct {
 	ExpenseDate        string                      `json:"expense_date" validate:"required"`
 	PayerParticipantID string                      `json:"payer_participant_id" validate:"required,uuid"`
 	Items              []CreateExpenseItemizedItem `json:"items" validate:"required,min=1,dive"`
+	DiscountType       string                      `json:"discount_type" validate:"omitempty,oneof=amount percentage"`
+	DiscountValue      int64                       `json:"discount_value" validate:"gte=0"`
 }
 
 type CreateExpenseItemizedItem struct {

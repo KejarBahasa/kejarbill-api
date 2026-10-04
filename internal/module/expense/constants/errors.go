@@ -25,6 +25,8 @@ var (
 
 	ErrInvalidTotalAmount = errors.New("invalid total amount")
 
+	ErrInvalidDiscount = errors.New("invalid discount")
+
 	ErrExpenseEditForbidden = errors.New("expense edit not allowed")
 
 	ErrExpenseLocked = errors.New("expense locked after settlement")

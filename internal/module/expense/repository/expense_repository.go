@@ -26,13 +26,16 @@ func (r *ExpenseRepository) CreateExpense(ctx context.Context, db database.PgxEx
 			paid_by_participant_id,
 			currency,
 			subtotal_amount,
+			discount_type,
+			discount_value,
+			discount_amount,
 			total_amount,
 			split_method,
 			expense_date,
 			created_by
 		)
 		VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
 		)
 		RETURNING id
 	`
@@ -49,6 +52,9 @@ func (r *ExpenseRepository) CreateExpense(ctx context.Context, db database.PgxEx
 		expense.Currency,
 
 		expense.SubtotalAmount,
+		expense.DiscountType,
+		expense.DiscountValue,
+		expense.DiscountAmount,
 		expense.TotalAmount,
 
 		expense.SplitMethod,
@@ -337,6 +343,10 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 			e.title,
 			e.description,
 			e.currency,
+			e.subtotal_amount,
+			e.discount_type,
+			e.discount_value,
+			e.discount_amount,
 			e.total_amount,
 			e.expense_date,
 			e.version,
@@ -357,6 +367,10 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 		&expense.Title,
 		&expense.Description,
 		&expense.Currency,
+		&expense.SubtotalAmount,
+		&expense.DiscountType,
+		&expense.DiscountValue,
+		&expense.DiscountAmount,
 		&expense.TotalAmount,
 		&expense.ExpenseDate,
 		&expense.Version,
@@ -374,6 +388,7 @@ func (r *ExpenseRepository) FindDetailByID(ctx context.Context, db database.PgxE
 func (r *ExpenseRepository) FindForUpdate(ctx context.Context, db database.PgxExt, expenseID string) (*entity.Expense, error) {
 	query := `
 		SELECT id, group_id, title, description, paid_by_participant_id, currency,
+			subtotal_amount, discount_type, discount_value, discount_amount,
 			total_amount, split_method, expense_date, status, created_by, version
 		FROM expenses
 		WHERE id = $1 AND deleted_at IS NULL
@@ -388,6 +403,10 @@ func (r *ExpenseRepository) FindForUpdate(ctx context.Context, db database.PgxEx
 		&expense.Description,
 		&expense.PaidByParticipantID,
 		&expense.Currency,
+		&expense.SubtotalAmount,
+		&expense.DiscountType,
+		&expense.DiscountValue,
+		&expense.DiscountAmount,
 		&expense.TotalAmount,
 		&expense.SplitMethod,
 		&expense.ExpenseDate,
@@ -408,10 +427,11 @@ func (r *ExpenseRepository) UpdateExpense(ctx context.Context, db database.PgxEx
 	query := `
 		UPDATE expenses
 		SET title = $2, description = $3, paid_by_participant_id = $4,
-			currency = $5, subtotal_amount = $6, total_amount = $7,
-			split_method = $8, expense_date = $9, version = version + 1,
+			currency = $5, subtotal_amount = $6, discount_type = $7,
+			discount_value = $8, discount_amount = $9, total_amount = $10,
+			split_method = $11, expense_date = $12, version = version + 1,
 			updated_at = NOW()
-		WHERE id = $1 AND version = $10 AND deleted_at IS NULL
+		WHERE id = $1 AND version = $13 AND deleted_at IS NULL
 	`
 	commandTag, err := db.Exec(ctx, query,
 		expense.ID,
@@ -420,6 +440,9 @@ func (r *ExpenseRepository) UpdateExpense(ctx context.Context, db database.PgxEx
 		expense.PaidByParticipantID,
 		expense.Currency,
 		expense.SubtotalAmount,
+		expense.DiscountType,
+		expense.DiscountValue,
+		expense.DiscountAmount,
 		expense.TotalAmount,
 		expense.SplitMethod,
 		expense.ExpenseDate,

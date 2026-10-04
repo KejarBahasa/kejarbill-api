@@ -85,20 +85,35 @@ func (s *ExpenseService) CreateEqualExpense(ctx context.Context, userID string, 
 		return "", err
 	}
 
-	baseShare := req.TotalAmount / int64(len(req.ParticipantIDs))
-	remainder := req.TotalAmount % int64(len(req.ParticipantIDs))
+	subtotalAmount := req.SubtotalAmount
+	if subtotalAmount == 0 {
+		subtotalAmount = req.TotalAmount
+	}
+	if subtotalAmount <= 0 {
+		return "", expenseConstants.ErrInvalidTotalAmount
+	}
+	adjustment, err := calculateExpenseAdjustment(subtotalAmount, req.DiscountType, req.DiscountValue)
+	if err != nil {
+		return "", err
+	}
+
+	baseShare := subtotalAmount / int64(len(req.ParticipantIDs))
+	remainder := subtotalAmount % int64(len(req.ParticipantIDs))
+	baseShares := make([]int64, len(req.ParticipantIDs))
+	for index := range req.ParticipantIDs {
+		baseShares[index] = baseShare
+		if int64(index) < remainder {
+			baseShares[index]++
+		}
+	}
+	finalShares := applyDiscountToShares(baseShares, adjustment.DiscountAmount)
 
 	participants := make([]entity.CreateExpenseParticipantPayload, 0, len(req.ParticipantIDs))
 
 	for index, participantID := range req.ParticipantIDs {
-		shareAmount := baseShare
-		if int64(index) < remainder {
-			shareAmount++
-		}
-
 		participants = append(participants, entity.CreateExpenseParticipantPayload{
 			ParticipantID: participantID,
-			ShareAmount:   shareAmount,
+			ShareAmount:   finalShares[index],
 		})
 	}
 
@@ -109,7 +124,11 @@ func (s *ExpenseService) CreateEqualExpense(ctx context.Context, userID string, 
 		Currency:           req.Currency,
 		ExpenseDate:        validationResult.ExpenseDate,
 		PayerParticipantID: req.PayerParticipantID,
-		TotalAmount:        req.TotalAmount,
+		SubtotalAmount:     subtotalAmount,
+		DiscountType:       adjustment.DiscountType,
+		DiscountValue:      req.DiscountValue,
+		DiscountAmount:     adjustment.DiscountAmount,
+		TotalAmount:        adjustment.TotalAmount,
 		CreatedBy:          userID,
 		SplitMethod:        expenseConstants.SplitMethodEqual,
 		Participants:       participants,
@@ -125,7 +144,7 @@ func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string,
 
 	participantIDs := make([]string, 0, len(req.Participants))
 	participants := make([]entity.CreateExpenseParticipantPayload, 0, len(req.Participants))
-	var totalAmount int64
+	var subtotalAmount int64
 
 	for _, participant := range req.Participants {
 		participantIDs = append(participantIDs, participant.ParticipantID)
@@ -135,7 +154,19 @@ func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string,
 			ShareAmount:   participant.ShareAmount,
 		})
 
-		totalAmount += participant.ShareAmount
+		subtotalAmount += participant.ShareAmount
+	}
+	adjustment, err := calculateExpenseAdjustment(subtotalAmount, req.DiscountType, req.DiscountValue)
+	if err != nil {
+		return "", err
+	}
+	baseShares := make([]int64, len(participants))
+	for index, participant := range participants {
+		baseShares[index] = participant.ShareAmount
+	}
+	finalShares := applyDiscountToShares(baseShares, adjustment.DiscountAmount)
+	for index := range participants {
+		participants[index].ShareAmount = finalShares[index]
 	}
 
 	validationResult, err := s.validateExpenseCreation(
@@ -158,7 +189,11 @@ func (s *ExpenseService) CreateCustomExpense(ctx context.Context, userID string,
 		Currency:           req.Currency,
 		ExpenseDate:        validationResult.ExpenseDate,
 		PayerParticipantID: req.PayerParticipantID,
-		TotalAmount:        totalAmount,
+		SubtotalAmount:     subtotalAmount,
+		DiscountType:       adjustment.DiscountType,
+		DiscountValue:      req.DiscountValue,
+		DiscountAmount:     adjustment.DiscountAmount,
+		TotalAmount:        adjustment.TotalAmount,
 		CreatedBy:          userID,
 		SplitMethod:        expenseConstants.SplitMethodCustom,
 		Participants:       participants,
@@ -172,7 +207,7 @@ func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID strin
 	items := make([]entity.ExpenseItem, 0, len(req.Items))
 	itemParticipants := make([]entity.ExpenseItemParticipant, 0)
 	participantIDs := make([]string, 0, len(req.Items))
-	var totalAmount int64
+	var subtotalAmount int64
 
 	for _, item := range req.Items {
 		if utils.HasDuplicateString(item.ParticipantIDs) {
@@ -207,7 +242,21 @@ func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID strin
 			})
 		}
 
-		totalAmount += subtotal
+		subtotalAmount += subtotal
+	}
+	adjustment, err := calculateExpenseAdjustment(subtotalAmount, req.DiscountType, req.DiscountValue)
+	if err != nil {
+		return "", err
+	}
+	baseItemShares := make([]int64, len(itemParticipants))
+	for index, participant := range itemParticipants {
+		baseItemShares[index] = participant.ShareAmount
+	}
+	finalItemShares := applyDiscountToShares(baseItemShares, adjustment.DiscountAmount)
+	participantShareMap = make(map[string]int64)
+	for index := range itemParticipants {
+		itemParticipants[index].ShareAmount = finalItemShares[index]
+		participantShareMap[itemParticipants[index].ParticipantID] += finalItemShares[index]
 	}
 
 	validationResult, err := s.validateExpenseCreation(
@@ -230,8 +279,11 @@ func (s *ExpenseService) CreateItemizedExpense(ctx context.Context, userID strin
 			Title:               req.Title,
 			Description:         utils.PtrOrNil(req.Description),
 			Currency:            req.Currency,
-			SubtotalAmount:      totalAmount,
-			TotalAmount:         totalAmount,
+			SubtotalAmount:      subtotalAmount,
+			DiscountType:        adjustment.DiscountType,
+			DiscountValue:       req.DiscountValue,
+			DiscountAmount:      adjustment.DiscountAmount,
+			TotalAmount:         adjustment.TotalAmount,
 			ExpenseDate:         validationResult.ExpenseDate,
 			PaidByParticipantID: req.PayerParticipantID,
 			SplitMethod:         expenseConstants.SplitMethodItemized,
@@ -410,11 +462,15 @@ func (s *ExpenseService) Update(ctx context.Context, requesterUserID string, exp
 		if utils.HasDuplicateString(req.ParticipantIDs) {
 			return expenseConstants.ErrDuplicateParticipants
 		}
-		if req.TotalAmount <= 0 {
+		subtotalAmount := req.SubtotalAmount
+		if subtotalAmount == 0 {
+			subtotalAmount = req.TotalAmount
+		}
+		if subtotalAmount <= 0 {
 			return expenseConstants.ErrInvalidTotalAmount
 		}
-		baseShare := req.TotalAmount / int64(len(req.ParticipantIDs))
-		remainder := req.TotalAmount % int64(len(req.ParticipantIDs))
+		baseShare := subtotalAmount / int64(len(req.ParticipantIDs))
+		remainder := subtotalAmount % int64(len(req.ParticipantIDs))
 		for index, participantID := range req.ParticipantIDs {
 			shareAmount := baseShare
 			if int64(index) < remainder {
@@ -423,7 +479,7 @@ func (s *ExpenseService) Update(ctx context.Context, requesterUserID string, exp
 			participantShareMap[participantID] = shareAmount
 			participantIDs = append(participantIDs, participantID)
 		}
-		totalAmount = req.TotalAmount
+		totalAmount = subtotalAmount
 
 	case expenseConstants.SplitMethodCustom:
 		if len(req.Participants) == 0 {
@@ -482,6 +538,32 @@ func (s *ExpenseService) Update(ctx context.Context, requesterUserID string, exp
 
 	default:
 		return expenseConstants.ErrInvalidTotalAmount
+	}
+
+	adjustment, err := calculateExpenseAdjustment(totalAmount, req.DiscountType, req.DiscountValue)
+	if err != nil {
+		return err
+	}
+	if req.SplitMethod == expenseConstants.SplitMethodItemized {
+		baseShares := make([]int64, len(itemParticipants))
+		for index, participant := range itemParticipants {
+			baseShares[index] = participant.ShareAmount
+		}
+		finalShares := applyDiscountToShares(baseShares, adjustment.DiscountAmount)
+		participantShareMap = make(map[string]int64)
+		for index := range itemParticipants {
+			itemParticipants[index].ShareAmount = finalShares[index]
+			participantShareMap[itemParticipants[index].ParticipantID] += finalShares[index]
+		}
+	} else {
+		baseShares := make([]int64, len(participantIDs))
+		for index, participantID := range participantIDs {
+			baseShares[index] = participantShareMap[participantID]
+		}
+		finalShares := applyDiscountToShares(baseShares, adjustment.DiscountAmount)
+		for index, participantID := range participantIDs {
+			participantShareMap[participantID] = finalShares[index]
+		}
 	}
 
 	return database.WithTransaction(ctx, s.db, func(tx database.PgxExt) error {
@@ -559,7 +641,10 @@ func (s *ExpenseService) Update(ctx context.Context, requesterUserID string, exp
 			PaidByParticipantID: req.PayerParticipantID,
 			Currency:            req.Currency,
 			SubtotalAmount:      totalAmount,
-			TotalAmount:         totalAmount,
+			DiscountType:        adjustment.DiscountType,
+			DiscountValue:       req.DiscountValue,
+			DiscountAmount:      adjustment.DiscountAmount,
+			TotalAmount:         adjustment.TotalAmount,
 			SplitMethod:         req.SplitMethod,
 			ExpenseDate:         validationResult.ExpenseDate,
 			Version:             current.Version,

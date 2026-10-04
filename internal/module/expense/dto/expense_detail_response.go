@@ -1,16 +1,20 @@
 package dto
 
 type ExpenseDetailResponse struct {
-	Description  *string                            `json:"description"`
-	ID           string                             `json:"id"`
-	Title        string                             `json:"title"`
-	Currency     string                             `json:"currency"`
-	ExpenseDate  string                             `json:"expense_date"`
-	TotalAmount  int64                              `json:"total_amount"`
-	Version      int                                `json:"version"`
-	Payer        ExpenseDetailPayerResponse         `json:"payer"`
-	Participants []ExpenseDetailParticipantResponse `json:"participants"`
-	Items        []ExpenseDetailItemResponse        `json:"items"`
+	Description    *string                            `json:"description"`
+	ID             string                             `json:"id"`
+	Title          string                             `json:"title"`
+	Currency       string                             `json:"currency"`
+	ExpenseDate    string                             `json:"expense_date"`
+	SubtotalAmount int64                              `json:"subtotal_amount"`
+	DiscountType   string                             `json:"discount_type"`
+	DiscountValue  int64                              `json:"discount_value"`
+	DiscountAmount int64                              `json:"discount_amount"`
+	TotalAmount    int64                              `json:"total_amount"`
+	Version        int                                `json:"version"`
+	Payer          ExpenseDetailPayerResponse         `json:"payer"`
+	Participants   []ExpenseDetailParticipantResponse `json:"participants"`
+	Items          []ExpenseDetailItemResponse        `json:"items"`
 }
 
 type ExpenseDetailPayerResponse struct {
